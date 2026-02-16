@@ -11,8 +11,6 @@ import random
 import os
 import traceback
 
-#https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
-
 # A few helper functions
 # Create the optimized driver (loads fast, limits images)
 def create_optimized_driver():
@@ -392,7 +390,7 @@ def fill_order_form():
     
             # Try to select by visible text
             select.select_by_visible_text(country_name)
-            print(f"   ✓ Country selected: {country_name}")
+            print(f"✓ Country selected: {country_name}")
     
             time.sleep(1)
     
@@ -528,7 +526,29 @@ def place_order():
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkout_button)
         time.sleep(1)
         checkout_button.click()
+        return True
+        
+    except Exception as e:
+        print(f"✗ Error in final order submission: {str(e)}")
+        take_screenshot("final_order_error")
+        return False
 
+# URL for final page is like: https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
+def get_order_number():
+    try:
+        current_url = driver.current_url
+        if "ORDER_ID=" in current_url:
+            # Slicing different number of characters for test ("T-") and regular orders
+            if "T-" in current_url:
+                order_num = current_url[-14:]
+            else:
+                order_num = current_url[-12:]
+            print(f"✓ ORDER CONFIRMED! Order number: {order_num}")
+            return order_num
+                
+        else:
+            print(f"✗ Order number is not in current url")
+            return False
         
     except Exception as e:
         print(f"✗ Error in final order submission: {str(e)}")
@@ -540,7 +560,7 @@ if __name__ == "__main__":
     try:
         # Initialize step counter
         step_counter = StepCounter()
-        print("Runnin US script")
+        print("Running US script")
         print("---------------LOGS FOR NERDS---------------")
 
         # Initialize all variables
@@ -598,7 +618,10 @@ if __name__ == "__main__":
                                                 order_result = place_order()
 
                                                 if order_result:
-                                                    print("✓ Order successfully placed!")                                                                      
+                                                    print("✓ Order successfully placed!")
+                                                    time.sleep(3)
+                                                    step_counter.print_step("Getting the order number")
+                                                    test_order_num = get_order_number()
 
                                                 else:
                                                     print("✗ Failed to place order")                                                
@@ -630,7 +653,7 @@ if __name__ == "__main__":
 
         print("----------ORDER INFO----------")
         if order_result:
-            print(f"Order number: {order_result}") # Currently don't read, should be True
+            print(f"Order number: {test_order_num}") # Will return False in case of error
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {str(my_sku)}")
