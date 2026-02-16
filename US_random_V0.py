@@ -1,0 +1,578 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import re
+import random
+import os
+import traceback
+
+# A few helper functions
+# Create the optimized driver (loads fast, limits images)
+def create_optimized_driver():
+    # Use Options class to customize WebDriver
+    options = Options()
+    # Waits for DOM to be interactive (instead of all resources downloaded)
+    options.page_load_strategy = 'eager'
+    
+    # Block all images, background networking and extensions
+    prefs = {"profile.managed_default_content_settings.images": 2}
+    options.add_experimental_option("prefs", prefs)
+    options.add_argument('--disable-background-networking')
+    options.add_argument('--disable-extensions')
+    
+    driver = webdriver.Chrome(options=options)
+    
+    # LONGER timeout for initial load
+    driver.set_page_load_timeout(60)
+    
+    return driver
+
+def take_screenshot(name):
+    # Creates screenshot folder
+    if not os.path.exists("screenshots"):
+        os.makedirs("screenshots")
+
+    filename = f"screenshots/{name}_{int(time.time())}.png"
+    driver.save_screenshot(filename)
+    print(f"Screenshot saved as: {filename}")
+    return filename
+
+# A step counter class to count step number automatically
+class StepCounter:
+    def __init__(self):
+        self.step = 1
+    
+    def print_step(self, message):
+        print(f"\n--- Step {self.step}: {message} ---")
+        self.step += 1
+
+# Initialize driver and wait
+user_email = input("Enter email: ")
+driver = create_optimized_driver()
+driver.maximize_window()
+wait = WebDriverWait(driver, 20)
+website_main = "https://levenhuk.com/"
+test_phone = "+79444444444"
+
+# Choose random sku
+def choose_sku():
+    # Includes diff brands. No free deliveries = no price groups
+    skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917] 
+    sku_num = random.randint(0, (len(skus) - 1))
+    sku = skus[sku_num]
+    return(sku)
+
+def choose_address():
+    # Define a list of shipping addresses
+    shipping_addresses = [
+    {
+        'country': 'USA',
+        'city': 'Albuquerque',
+        'address': '3001 Aliso Dr NE',
+        'postal_code': '87110'
+    },
+    {
+        'country': 'USA',
+        'city': 'Cincinnati', 
+        'address': '684 S Fred Shuttlesworth Cir',
+        'postal_code': '45229'
+    },
+    {
+        'country': 'USA',
+        'city': 'New Orleans',
+        'address': '5507 Lafaye St',
+        'postal_code': '70122'
+    }
+]
+    address = shipping_addresses[random.randint(0,2)] 
+    return(address) #returns a dictionary
+
+def extract_price(price_text):
+    # Extract numeric price from text
+    # Remove all characters except digits and the dot
+    clean_text = re.sub(r'[^\d.]', '', price_text)
+    try:
+        return float(clean_text)
+    except ValueError:
+        return None
+
+def get_total_price():
+    # Extract the total price from the Cart price block
+    try:
+        price_text = driver.find_element(By.CLASS_NAME, 'cart-panel__price').text
+        price = extract_price(price_text)
+        if price is not None:
+            return price               
+             
+        print("Could not find total price on page")
+        return None
+        
+    except Exception as e:
+        print(f"Error extracting price: {str(e)}")
+        return None
+
+# No cookie popup - no need to close
+def search_for_sku(sku):
+    try:
+        print("Navigating to main page...")
+        driver.get(website_main)
+        time.sleep(3)
+        
+        print("Opening search box...")
+        search_box = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "header__search")))
+        search_box.click()
+        time.sleep(1)
+        
+        print("Entering SKU...")
+        search_input = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "search__input")))
+        
+        search_input.clear()
+        search_input.send_keys(str(sku))
+
+        
+        print("Submitting search...")
+        search_input.send_keys(Keys.ENTER)
+        
+        print("Waiting for results to load...")
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CLASS_NAME, ".b-48.pb-md-24"))
+            )
+        except:
+            time.sleep(5)
+
+        # Find card SKU line, like "Product ID: 83836"
+        card_sku_text = driver.find_element(By.CLASS_NAME, 'catalog-card__article').text
+        card_sku = int(card_sku_text[-6:])
+        print(f"SKU on the product card is: {card_sku}")
+
+        if sku == card_sku:        
+            print("Search completed successfully")
+            return True
+        else:
+            print(f"First found item doesn't match the search: looked for {sku}, firs item is {card_sku}")
+            return False
+        
+    except Exception as e:
+        print(f"Search failed: {str(e)}")
+        take_screenshot("search_error")
+        return False
+
+def get_offer_id(sku):
+    # Offer ID is in data-id
+    try:
+        print(f"Finding offer ID for SKU: {sku}")
+        
+        # Find the catalog-card container that contains SKU text and get its data-id
+        offer_id_xpath = f"//div[contains(@class, 'catalog-card') and .//div[contains(@class, 'catalog-card__article') and contains(text(), '{sku}')]]"
+        
+        container = wait.until(EC.presence_of_element_located((By.XPATH, offer_id_xpath)))
+        
+        # Get the offer ID from data-id attribute
+        offer_id = container.get_attribute('data-id')
+        
+        if offer_id:
+            print(f"Found offer ID: {offer_id}")
+            return int(offer_id)
+        else:
+            print("No data-id attribute found on container")
+            return None
+            
+    except Exception as e:
+        print(f"Error finding offer ID: {str(e)}")
+        return None
+
+def add_to_cart_via_api(offer_id, quantity=1):
+    # Simple API call - no UI updates attempted, relies on page refresh to update the cart
+    try:
+        print(f"Adding offer {offer_id} to cart via API...")
+        
+        script = f"""
+            fetch('/rest/methods/user/basket/change', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{offerId: {offer_id}, quantity: "{quantity}"}})
+            }})
+            .then(response => response.json())
+            .then(data => {{
+                console.log('API Response:', data);
+                // Store success state for verification
+                window.lastCartAdd = {{
+                    success: true,
+                    offerId: {offer_id},
+                    timestamp: Date.now()
+                }};
+            }})
+            .catch(error => {{
+                console.error('API Error:', error);
+                window.lastCartAdd = {{success: false, error: error.message}};
+            }});
+        """
+        
+        driver.execute_script(script)
+        time.sleep(2)  # Wait for API call
+        
+        # Verify it worked
+        check_script = """
+            return window.lastCartAdd || {success: false, error: 'No response'};
+        """
+        result = driver.execute_script(check_script)
+        
+        if result.get('success'):
+            print(f"✓ API call successful for offer {offer_id}")
+            return True
+        else:
+            print(f"✗ API call failed: {result.get('error')}")
+            return False
+            
+    except Exception as e:
+        print(f"✗ Error in API call: {e}")
+        return False
+
+def navigate_to_cart_directly():
+    # Navigate to the cart page directly by URL
+    try:
+        cart_url = "https://levenhuk.com/basket/"
+        print(f"Navigating to cart URL: {cart_url}")
+        
+        driver.get(cart_url)
+        time.sleep(3)
+        
+        # Check if we're on a cart page
+        current_url = driver.current_url.lower()
+        if "basket" in current_url:
+            print("✓ Successfully navigated to cart page")
+            return True
+        else:
+            print(f"Not on cart page. Current URL: {driver.current_url}")
+            return False
+        
+    except Exception as e:
+        print(f"✗ Failed to navigate to cart: {str(e)}")
+        take_screenshot("cart_navigation_error")
+        return False
+
+def check_cart_contents(sku, expected_quantity=1):
+    cart_items = driver.find_elements(By.CSS_SELECTOR, 
+        "div[class*='cart-table__item'][id^='basket-item-']")
+    total_qty = 0
+    found = False
+    
+    for cart_item in cart_items:  # cart_item is the whole DIV for a basket item
+        # Check if this cart item has our SKU
+        if str(sku) in cart_item.text:
+            found = True
+            # Get quantity directly in element counter
+            qty_input = cart_item.find_element(By.CSS_SELECTOR, 
+                "[data-entity='basket-item-quantity-field']")
+            qty = int(qty_input.get_attribute('value'))
+            total_qty += qty
+            print(f"✓Found SKU {sku}, quantity: {qty}")
+    
+    if not found:
+        print(f"✗ SKU {sku} not found")
+        return False
+    
+    print(f"   Total quantity: {total_qty}, Expected: {expected_quantity}")
+    return total_qty == expected_quantity
+
+def proceed_to_checkout():
+    # Click the checkout button, verify Basket > Order page
+    try:
+        print("Looking for checkout button...")
+        checkout_button = driver.find_element(By.CSS_SELECTOR, "[data-entity='basket-checkout-button']")
+        if checkout_button and checkout_button.is_displayed():
+            print(f"Found checkout button")
+                                
+        if not checkout_button:
+            raise Exception("Could not find checkout button")
+        
+        print("Clicking checkout button...")
+        checkout_button.click()
+        
+        # Wait for the order page to load
+        print("Waiting for order page to load...")
+        WebDriverWait(driver, 5).until(
+            EC.url_contains("order")
+        )
+        
+        # Verify we're on the order page
+        current_url = driver.current_url.lower()
+        if "order" in current_url:
+            print(f"Successfully navigated to order page: {driver.current_url}")
+            return True
+        else:
+            print(f"Not on order page. Current URL: {driver.current_url}")
+            take_screenshot("not_on_order_page")
+            return False
+        
+    except Exception as e:
+        print(f"Failed to proceed to checkout: {str(e)}")
+        take_screenshot("checkout_error")
+        return False
+
+def fill_order_form():
+    try:
+        ship_to = choose_address() #is a dictionary
+        country_name = ship_to['country']
+        print(f"Chosen address in: {str(ship_to['city'])}")
+        
+        # Wait for the form to be present
+        WebDriverWait(driver, 15).until(EC.presence_of_element_located(
+            (By.ID, "EMAIL"))
+        )
+        print("Form found, starting to fill fields...")
+        
+        # Contact information
+        print("Filling contact information...")
+        
+        # Email field
+        try:
+            email_field = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.ID, "EMAIL"))
+            )
+            email_field.clear()
+            email_field.send_keys(user_email)
+            print("✓ Email field filled")
+        except Exception as e:
+            print(f"✗ Error with email field: {str(e)}")
+            take_screenshot("email_field_error")
+            return False
+        
+        # Phone field
+        try:
+            # Different selector - no ID
+            phone_field = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.NAME, "ORDER_PROP_88"))
+            )
+            phone_field.clear()
+            phone_field.send_keys(test_phone)
+            print("✓ Phone field filled")
+            
+        except Exception as e:
+            print(f"✗ Error with phone field: {str(e)}")
+            take_screenshot("phone_field_error")
+            return False
+        
+        # Name field
+        try:
+            name_field = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.ID, "FIO_SHIP"))
+            )
+            name_field.clear()
+            name_field.send_keys("Alena Auto Test")
+            print("✓ Name field filled")
+
+        except Exception as e:
+            print(f"✗ Error with name field: {str(e)}")
+            take_screenshot("name_field_error")
+            return False  
+               
+        # Shipping address
+        print("Filling shipping address...")
+
+        # Country field (a dropdown with typeahead)
+        try:
+            print(f"Selecting country: {country_name}")
+
+            # Find the actual select element (it's visible and interactable!)
+            country_select = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "COUNTRY_SHIPPING"))
+            )
+    
+            # Create Select object
+            select = Select(country_select)
+    
+            # Try to select by visible text
+            select.select_by_visible_text(country_name)
+            print(f"   ✓ Country selected: {country_name}")
+    
+            time.sleep(1)
+    
+        except Exception as e:
+            print(f"✗ Error with country field: {e}")
+            traceback.print_exc()
+            take_screenshot("country_field_error")
+            return False
+                    
+        # City field 
+        try:
+            # Wait for the city field to be interactable
+            city_field = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "CITY_SHIP"))
+            )
+            
+            # Scroll to the element to ensure it's in view
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", city_field)
+            time.sleep(0.5)
+            
+            # Click on the field to ensure focus
+            city_field.click()
+            time.sleep(0.5)
+            
+            # Clear and fill the field
+            city_field.clear()
+            city_field.send_keys(ship_to['city'])
+            print("✓ City field filled")
+            
+            # Press Tab to move to next field (this might help with form validation)
+            city_field.send_keys(Keys.TAB)
+            time.sleep(0.5)
+            
+        except Exception as e:
+            print(f"✗ Error with city field: {str(e)}")
+            take_screenshot("city_field_error")
+            return False
+        
+        # Address field
+        try:
+            address_field = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.ID, "ADDRESS_SHIP"))
+            )
+            
+            # Click to ensure focus
+            address_field.click()
+            time.sleep(0.5)
+            
+            address_field.clear()
+            address_field.send_keys(ship_to['address'])
+            print("✓ Address field filled")
+            
+            # Press Tab to move to next field
+            address_field.send_keys(Keys.TAB)
+            time.sleep(0.5)
+            
+        except Exception as e:
+            print(f"✗ Error with address field: {str(e)}")
+            take_screenshot("address_field_error")
+            return False
+        
+        # Postal code field
+        try:
+            postal_code_field = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.ID, "ZIP_SHIP"))
+            )
+            
+            # Click to ensure focus
+            postal_code_field.click()
+            time.sleep(0.5)
+            
+            postal_code_field.clear()
+            postal_code_field.send_keys(ship_to['postal_code'])
+            print("✓ Postal code field filled")
+            
+        except Exception as e:
+            print(f"✗ Error with postal code field: {str(e)}")
+            take_screenshot("postal_code_field_error")
+            return False
+        
+        # Billing address is the same as shipping (default tick remains)
+        print("Billing address remains same as shipping (default)")
+
+        # Order comment
+        try:
+            comment_field = driver.find_element(By.ID, "ORDER_DESCRIPTION")
+            driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alyona\'s helpful minions";', comment_field)
+            print("✓ Comment field filled")
+        
+        except Exception as e:
+            print(f"✗ Error with comment field: {str(e)}")
+            take_screenshot("comment_field_error")
+        
+        # Check delivery options
+        print("Checking delivery options...")
+        try:
+            # Look for the specific courier delivery option
+            courier_option = driver.find_element(By.CSS_SELECTOR, "label[for='ID_SHIPPING_METHOD_ID_23']")
+
+            if courier_option:
+                print("Found a courier delivery option as expected (Courier delivery)")
+            else:
+                print("Could not find the Courier delivery option")
+
+        except Exception as e:
+            print(f"Could not check delivery options: {str(e)}")
+        
+        take_screenshot("order_form_filled")
+        print("Order form filled successfully")
+        return True
+        
+    except Exception as e:
+        print(f"Error filling order form: {str(e)}")
+        # Add traceback to see where it's failing
+        traceback.print_exc()
+        take_screenshot("order_form_error")
+        return False
+
+def place_order():
+    # Finalize the order by clicking the checkout button on the order form
+    try:
+        print("Placing final order...")
+        
+        take_screenshot("before_final_order")
+        
+        # Find and click the checkout button
+        checkout_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "submit"))
+        )
+        print(f"✓ Found checkout button: '{checkout_button.text}'")
+        
+        # Scroll to button
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkout_button)
+        time.sleep(1)
+        checkout_button.click()
+
+        
+    except Exception as e:
+        print(f"✗ Error in final order submission: {str(e)}")
+        take_screenshot("final_order_error")
+        return False
+
+
+
+my_sku = choose_sku()
+print(my_sku)
+driver.get(website_main)
+time.sleep(5)
+search_for_sku(my_sku)
+time.sleep(5)
+my_offer_id = get_offer_id(my_sku)
+add_to_cart_via_api(my_offer_id)
+time.sleep(1)
+driver.refresh()
+time.sleep(1)
+navigate_to_cart_directly()
+time.sleep(1)
+check_cart_contents(my_sku)
+#driver.get("https://levenhuk.com/order/")
+proceed_to_checkout()
+time.sleep(2)
+fill_order_form()
+time.sleep(5)
+place_order()
+time.sleep(3)
+
+
+"""
+# Main execution
+if __name__ == "__main__":
+    try:
+        print("Running US script")
+        print("---------------LOGS FOR NERDS---------------")
+        
+        sku = choose_sku()
+        print(f"Chosen SKU: {str(sku)}")
+
+    except Exception as e:
+        print(f"\n✗ Script failed with error: {str(e)}")
+        take_screenshot("main_script_error")"""          
+
+driver.quit()
+
+
+        
