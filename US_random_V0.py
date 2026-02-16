@@ -11,6 +11,8 @@ import random
 import os
 import traceback
 
+#https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
+
 # A few helper functions
 # Create the optimized driver (loads fast, limits images)
 def create_optimized_driver():
@@ -520,7 +522,7 @@ def place_order():
         checkout_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "submit"))
         )
-        print(f"✓ Found checkout button: '{checkout_button.text}'")
+        print(f"✓ Found checkout button")
         
         # Scroll to button
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkout_button)
@@ -533,46 +535,131 @@ def place_order():
         take_screenshot("final_order_error")
         return False
 
-
-
-my_sku = choose_sku()
-print(my_sku)
-driver.get(website_main)
-time.sleep(5)
-search_for_sku(my_sku)
-time.sleep(5)
-my_offer_id = get_offer_id(my_sku)
-add_to_cart_via_api(my_offer_id)
-time.sleep(1)
-driver.refresh()
-time.sleep(1)
-navigate_to_cart_directly()
-time.sleep(1)
-check_cart_contents(my_sku)
-#driver.get("https://levenhuk.com/order/")
-proceed_to_checkout()
-time.sleep(2)
-fill_order_form()
-time.sleep(5)
-place_order()
-time.sleep(3)
-
-
-"""
 # Main execution
 if __name__ == "__main__":
     try:
-        print("Running US script")
+        # Initialize step counter
+        step_counter = StepCounter()
+        print("Runnin US script")
         print("---------------LOGS FOR NERDS---------------")
-        
-        sku = choose_sku()
-        print(f"Chosen SKU: {str(sku)}")
 
+        # Initialize all variables
+        # One option only for payment and delivery
+        delivery_option_summary = 'Courier delivery'
+        payment_option_summary = 'TBD'
+        my_sku = choose_sku()
+        basket_price = None
+        order_price = None
+        order_result = None
+        # No free shipping, no need to check
+
+        print(f"Chosen SKU: {str(my_sku)}")
+
+        step_counter.print_step("Searching for SKU")
+        
+        if search_for_sku(my_sku):
+            step_counter.print_step("Getting offer ID")
+            offer_id = get_offer_id(my_sku)
+
+            if offer_id:
+                step_counter.print_step("Adding to cart via API")
+                
+                if add_to_cart_via_api(offer_id, 1):
+                    step_counter.print_step("Refreshing page to synchronize UI")
+                    driver.refresh()
+                    time.sleep(1)
+                    step_counter.print_step("Navigating to cart")
+
+                    if navigate_to_cart_directly():
+                        step_counter.print_step("Checking cart contents")
+                        if check_cart_contents(my_sku):
+                            step_counter.print_step("Getting cart total price")
+                            basket_price = get_total_price()
+
+                            if basket_price is not None:
+                                print(f"Cart total price: {basket_price}")
+                                
+                                step_counter.print_step("Proceeding to checkout")
+                                if proceed_to_checkout():
+                                    step_counter.print_step("Getting order page total price")
+                                    order_price = get_total_price()
+
+                                    if order_price is not None:
+                                        print(f"Order page total price: {order_price}")
+                                        take_screenshot("order_with_price")
+                                        
+                                        # Compare prices
+                                        if abs(basket_price - order_price) < 0.01:  # Account for floating point precision
+                                            print("✓ SUCCESS: Prices match between cart and order pages!")
+                                            print(f"✓ Total price: {order_price}")
+
+                                            if fill_order_form():
+                                                step_counter.print_step("Placing order")
+                                                order_result = place_order()
+
+                                                if order_result:
+                                                    print("✓ Order successfully placed!")                                                                      
+
+                                                else:
+                                                    print("✗ Failed to place order")                                                
+
+                                            else:
+                                                print("✗ Failed to fill order form") 
+                                            
+                                        else:
+                                            print(f"✗ WARNING: Prices don't match! Cart: {basket_price}, Order: {order_price}")
+                                                                                       
+                                    else:
+                                        print("✗ Could not extract price from order page")
+                                else:
+                                    print("\n✗ Failed to proceed to checkout")
+                            else:
+                                print("\n✗ Could not extract price from cart page")
+                        else:
+                            print("\n✗ Item was added but not found in cart")
+                    else:
+                        print("\n✗ Failed to navigate to cart")
+                else:
+                    print("\n✗ Failed to add item to cart via API")
+            else:
+                print("\n✗ Could not find offer ID for the product")
+        else:
+            print("\n✗ Failed to search for SKU")
+        
+        print("\nProcess completed. Browser will close in 10 seconds.")
+
+        print("----------ORDER INFO----------")
+        if order_result:
+            print(f"Order number: {order_result}") # Currently don't read, should be True
+        else:
+            print("Order number: order wasn't placed")
+        print(f"Chosen SKU: {str(my_sku)}")
+        print(f"Item price: {order_price if order_price else 'N/A'}$")
+        print(f"Delivery option: {delivery_option_summary}")
+        print(f"Payment option: {payment_option_summary}")
+        
+        # Price match check
+        if basket_price and order_price:
+            if abs(basket_price - order_price) < 0.01:
+                print("Cart and order prices match: ✓ Yes")
+            else:
+                print(f"Cart and order prices match: ✗ No (Cart: {basket_price}, Order: {order_price})")
+        else:
+            print("Cart and order prices match: N/A (missing price data)")
+        
+        print("----------END----------")
+        time.sleep(10)
+        
     except Exception as e:
         print(f"\n✗ Script failed with error: {str(e)}")
-        take_screenshot("main_script_error")"""          
+        take_screenshot("main_script_error")          
+   
+    finally:
+        driver.quit()
 
-driver.quit()
+                                                
 
+
+  
 
         
