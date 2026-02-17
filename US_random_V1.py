@@ -16,7 +16,7 @@ import traceback
 def create_optimized_driver():
     # Use Options class to customize WebDriver
     options = Options()
-    # Wait for DOM to be interactive (instead of all resources downloaded)
+    # Wait for DOM to be interactive (instead of all resources to downloaded)
     options.page_load_strategy = 'eager'
     
     # Block all images, background networking and extensions
@@ -62,7 +62,8 @@ test_phone = "+79444444444"
 # Choose random sku
 def choose_sku():
     # Include diff brands. No free deliveries = no price groups
-    skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917] 
+    #skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917] 
+    skus = [85940]
     sku_num = random.randint(0, (len(skus) - 1))
     sku = skus[sku_num]
     return(sku)
@@ -154,7 +155,13 @@ def search_for_sku(sku):
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", card_sku_elem)
         time.sleep(2)
         take_screenshot("search_results")
-        
+
+        # Check if item is out of stock (maybe add price verification later)
+        item_price = driver.find_element(By.CLASS_NAME, 'catalog-card__price').text
+        if item_price == "Out of stock":
+            # Just add a warning for now. Later can reselect item
+            print("WARNING: Can't add this item to cart")
+                  
         if sku == card_sku:        
             print("✓ Search completed successfully")
             return True
