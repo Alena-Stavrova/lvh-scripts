@@ -16,7 +16,7 @@ import traceback
 def create_optimized_driver():
     # Use Options class to customize WebDriver
     options = Options()
-    # Waits for DOM to be interactive (instead of all resources downloaded)
+    # Wait for DOM to be interactive (instead of all resources downloaded)
     options.page_load_strategy = 'eager'
     
     # Block all images, background networking and extensions
@@ -27,13 +27,13 @@ def create_optimized_driver():
     
     driver = webdriver.Chrome(options=options)
     
-    # LONGER timeout for initial load
+    # Longer timeout for initial load
     driver.set_page_load_timeout(60)
     
     return driver
 
 def take_screenshot(name):
-    # Creates screenshot folder
+    # Create screenshot folder, name screenshot images
     if not os.path.exists("screenshots"):
         os.makedirs("screenshots")
 
@@ -42,7 +42,7 @@ def take_screenshot(name):
     print(f"Screenshot saved as: {filename}")
     return filename
 
-# A step counter class to count step number automatically
+# Step counter class to count step number automatically
 class StepCounter:
     def __init__(self):
         self.step = 1
@@ -61,7 +61,7 @@ test_phone = "+79444444444"
 
 # Choose random sku
 def choose_sku():
-    # Includes diff brands. No free deliveries = no price groups
+    # Include diff brands. No free deliveries = no price groups
     skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917] 
     sku_num = random.randint(0, (len(skus) - 1))
     sku = skus[sku_num]
@@ -118,6 +118,7 @@ def get_total_price():
 
 # No cookie popup - no need to close
 def search_for_sku(sku):
+    # Find item by SKU search
     try:
         print("Navigating to main page...")
         driver.get(website_main)
@@ -147,12 +148,9 @@ def search_for_sku(sku):
         # Find card SKU line, like "Product ID: 83836"
         card_sku_elem = driver.find_element(By.CLASS_NAME, 'catalog-card__article')
         card_sku = int(card_sku_elem.text[-6:])
-
-        #card_sku_text = driver.find_element(By.CLASS_NAME, 'catalog-card__article').text
-        #card_sku = int(card_sku_text[-6:])
         print(f"SKU on the product card is: {card_sku}")
         
-        # Scroll to the element to ensure it's in view
+        # Scroll to the element to take screenshot
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", card_sku_elem)
         time.sleep(2)
         take_screenshot("search_results")
@@ -264,6 +262,7 @@ def navigate_to_cart_directly():
         return False
 
 def check_cart_contents(sku, expected_quantity=1):
+    # Verify our item is in the basket
     cart_items = driver.find_elements(By.CSS_SELECTOR, 
         "div[class*='cart-table__item'][id^='basket-item-']")
     total_qty = 0
@@ -381,7 +380,7 @@ def fill_order_form():
         # Shipping address
         print("Filling shipping address...")
 
-        # Country field (a dropdown with typeahead)
+        # Select country in dropdown menu using Select object
         try:
             print(f"Selecting country: {country_name}")
 
@@ -479,7 +478,7 @@ def fill_order_form():
         # Billing address is the same as shipping (default tick remains)
         print("Billing address remains same as shipping (default)")
 
-        # Order comment
+        # Order comment (2 lines)
         try:
             comment_field = driver.find_element(By.ID, "ORDER_DESCRIPTION")
             driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alyona\'s helpful minions";', comment_field)
@@ -537,12 +536,14 @@ def place_order():
         take_screenshot("final_order_error")
         return False
 
-# URL for final page is like: https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
 def get_order_number():
+    # Get the order number from the URL of the confirmation page
+    # URL is like: https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
     try:
         current_url = driver.current_url
         if "ORDER_ID=" in current_url:
             # Slicing different number of characters for test ("T-") and regular orders
+            # Will need to edit if > 99,999 orders
             if "T-" in current_url:
                 order_num = current_url[-14:]
             else:
@@ -567,10 +568,10 @@ if __name__ == "__main__":
         print("Running US script")
         print("---------------LOGS FOR NERDS---------------")
 
-        # Initialize all variables
+        # Initialize all variables for the final summary
         # One option only for payment and delivery
-        delivery_option_summary = 'Courier delivery'
-        payment_option_summary = 'TBD'
+        delivery_option_summary = 'Courier delivery' # default
+        payment_option_summary = 'TBD' # default
         my_sku = choose_sku()
         basket_price = None
         order_price = None
@@ -685,10 +686,3 @@ if __name__ == "__main__":
    
     finally:
         driver.quit()
-
-                                                
-
-
-  
-
-        
