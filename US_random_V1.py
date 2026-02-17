@@ -62,8 +62,7 @@ test_phone = "+79444444444"
 # Choose random sku
 def choose_sku():
     # Include diff brands. No free deliveries = no price groups
-    #skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917] 
-    skus = [85940]
+    skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917] 
     sku_num = random.randint(0, (len(skus) - 1))
     sku = skus[sku_num]
     return(sku)
@@ -248,7 +247,8 @@ def add_to_cart_via_api(offer_id, quantity=1):
 def navigate_to_cart_directly():
     # Navigate to the cart page directly by URL
     try:
-        cart_url = "https://levenhuk.com/basket/"
+        #cart_url = "https://levenhuk.com/basket/"
+        cart_url = website_main + "basket/"
         print(f"Navigating to cart URL: {cart_url}")
         
         driver.get(cart_url)
