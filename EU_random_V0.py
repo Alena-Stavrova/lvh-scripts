@@ -73,7 +73,82 @@ def choose_sku():
         sku = items["skus_under_70"][item_num]
     else:
         sku = items["skus_70_plus"][item_num]
-    return(sku)
+
+def choose_address():
+    # Define a list of shipping addresses
+    shipping_addresses = [
+    {
+        'country': 'Finland',
+        'city': 'Oulu',
+        'address': 'Aleksanterinkatu 46',
+        'postal_code': '90120'
+    },
+    {
+        'country': 'Greece',
+        'city': 'Thessaloniki', 
+        'address': 'Kassandrou 37',
+        'postal_code': '54633'
+    },
+    {
+        'country': 'Slovenia',
+        'city': 'Maribor',
+        'address': 'Komenskega ulica 2',
+        'postal_code': '2000'
+    }
+]
+    address = shipping_addresses[random.randint(0,2)] 
+    return(address) #returns a dictionary
+
+def extract_price(price_text):
+    # Extract numeric price from text
+    # Remove all characters except digits and the comma (EU format)
+    clean_text = re.sub(r'[^\d,]', '', price_text)
+    # Replace comma with dot
+    clean_text = clean_text.replace(',', '.')
+    
+    try:
+        return float(clean_text)
+    except ValueError:
+        return None
+    
+def get_total_price():
+    # Extract the total price from the Cart price block
+    try:
+        price_text = driver.find_element(By.CLASS_NAME, 'cart-panel__price').text
+        price = extract_price(price_text)
+        if price is not None:
+            return price               
+             
+        print("✗ Could not find total price on page")
+        return None
+        
+    except Exception as e:
+        print(f"✗ Error extracting price: {str(e)}")
+        return None
+
+def close_cookie_popup():
+    # Close the cookie consent popup 
+    try:
+        accept_button = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".cky-btn.cky-btn-accept"))
+        )
+        accept_button.click()
+        print("Cookie popup closed")
+        time.sleep(1)
+        return True    
+     
+    except Exception as e:
+        print(f"Error handling cookie popup: {str(e)}")
+        return False
+
+
+
+
+
+
+
+
+
 
 
 
