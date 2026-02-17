@@ -109,11 +109,11 @@ def get_total_price():
         if price is not None:
             return price               
              
-        print("Could not find total price on page")
+        print("✗ Could not find total price on page")
         return None
         
     except Exception as e:
-        print(f"Error extracting price: {str(e)}")
+        print(f"✗ Error extracting price: {str(e)}")
         return None
 
 # No cookie popup - no need to close
@@ -130,15 +130,13 @@ def search_for_sku(sku):
         
         print("Entering SKU...")
         search_input = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "search__input")))
-        
         search_input.clear()
         search_input.send_keys(str(sku))
-
-        
+       
         print("Submitting search...")
-        search_input.send_keys(Keys.ENTER)
-        
+        search_input.send_keys(Keys.ENTER)       
         print("Waiting for results to load...")
+
         try:
             WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CLASS_NAME, ".b-48.pb-md-24"))
@@ -147,19 +145,27 @@ def search_for_sku(sku):
             time.sleep(5)
 
         # Find card SKU line, like "Product ID: 83836"
-        card_sku_text = driver.find_element(By.CLASS_NAME, 'catalog-card__article').text
-        card_sku = int(card_sku_text[-6:])
-        print(f"SKU on the product card is: {card_sku}")
+        card_sku_elem = driver.find_element(By.CLASS_NAME, 'catalog-card__article')
+        card_sku = int(card_sku_elem.text[-6:])
 
+        #card_sku_text = driver.find_element(By.CLASS_NAME, 'catalog-card__article').text
+        #card_sku = int(card_sku_text[-6:])
+        print(f"SKU on the product card is: {card_sku}")
+        
+        # Scroll to the element to ensure it's in view
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", card_sku_elem)
+        time.sleep(2)
+        take_screenshot("search_results")
+        
         if sku == card_sku:        
-            print("Search completed successfully")
+            print("✓ Search completed successfully")
             return True
         else:
-            print(f"First found item doesn't match the search: looked for {sku}, firs item is {card_sku}")
+            print(f"✗ First found item doesn't match the search: looked for {sku}, firs item is {card_sku}")
             return False
         
     except Exception as e:
-        print(f"Search failed: {str(e)}")
+        print(f"✗ Search failed: {str(e)}")
         take_screenshot("search_error")
         return False
 
@@ -177,14 +183,14 @@ def get_offer_id(sku):
         offer_id = container.get_attribute('data-id')
         
         if offer_id:
-            print(f"Found offer ID: {offer_id}")
+            print(f"✓ Found offer ID: {offer_id}")
             return int(offer_id)
         else:
-            print("No data-id attribute found on container")
+            print("✗ No data-id attribute found on container")
             return None
             
     except Exception as e:
-        print(f"Error finding offer ID: {str(e)}")
+        print(f"✗ Error finding offer ID: {str(e)}")
         return None
 
 def add_to_cart_via_api(offer_id, quantity=1):
@@ -272,19 +278,18 @@ def check_cart_contents(sku, expected_quantity=1):
                 "[data-entity='basket-item-quantity-field']")
             qty = int(qty_input.get_attribute('value'))
             total_qty += qty
-            print(f"✓Found SKU {sku}, quantity: {qty}")
+            print(f"✓ Found SKU {sku}, quantity: {qty}")
     
     if not found:
         print(f"✗ SKU {sku} not found")
         return False
     
-    print(f"   Total quantity: {total_qty}, Expected: {expected_quantity}")
+    print(f"Total quantity: {total_qty}, Expected: {expected_quantity}")
     return total_qty == expected_quantity
 
 def proceed_to_checkout():
     # Click the checkout button, verify Basket > Order page
     try:
-        print("Looking for checkout button...")
         checkout_button = driver.find_element(By.CSS_SELECTOR, "[data-entity='basket-checkout-button']")
         if checkout_button and checkout_button.is_displayed():
             print(f"Found checkout button")
@@ -304,15 +309,15 @@ def proceed_to_checkout():
         # Verify we're on the order page
         current_url = driver.current_url.lower()
         if "order" in current_url:
-            print(f"Successfully navigated to order page: {driver.current_url}")
+            print(f"✓ Successfully navigated to order page: {driver.current_url}")
             return True
         else:
-            print(f"Not on order page. Current URL: {driver.current_url}")
+            print(f"✗ Not on order page. Current URL: {driver.current_url}")
             take_screenshot("not_on_order_page")
             return False
         
     except Exception as e:
-        print(f"Failed to proceed to checkout: {str(e)}")
+        print(f"✗ Failed to proceed to checkout: {str(e)}")
         take_screenshot("checkout_error")
         return False
 
@@ -338,7 +343,7 @@ def fill_order_form():
             )
             email_field.clear()
             email_field.send_keys(user_email)
-            print("✓ Email field filled")
+            print("Email field filled")
         except Exception as e:
             print(f"✗ Error with email field: {str(e)}")
             take_screenshot("email_field_error")
@@ -352,7 +357,7 @@ def fill_order_form():
             )
             phone_field.clear()
             phone_field.send_keys(test_phone)
-            print("✓ Phone field filled")
+            print("Phone field filled")
             
         except Exception as e:
             print(f"✗ Error with phone field: {str(e)}")
@@ -366,7 +371,7 @@ def fill_order_form():
             )
             name_field.clear()
             name_field.send_keys("Alena Auto Test")
-            print("✓ Name field filled")
+            print("Name field filled")
 
         except Exception as e:
             print(f"✗ Error with name field: {str(e)}")
@@ -390,7 +395,7 @@ def fill_order_form():
     
             # Try to select by visible text
             select.select_by_visible_text(country_name)
-            print(f"✓ Country selected: {country_name}")
+            print(f"{country_name} is selected")
     
             time.sleep(1)
     
@@ -418,7 +423,7 @@ def fill_order_form():
             # Clear and fill the field
             city_field.clear()
             city_field.send_keys(ship_to['city'])
-            print("✓ City field filled")
+            print("City field filled")
             
             # Press Tab to move to next field (this might help with form validation)
             city_field.send_keys(Keys.TAB)
@@ -441,7 +446,7 @@ def fill_order_form():
             
             address_field.clear()
             address_field.send_keys(ship_to['address'])
-            print("✓ Address field filled")
+            print("Address field filled")
             
             # Press Tab to move to next field
             address_field.send_keys(Keys.TAB)
@@ -464,7 +469,7 @@ def fill_order_form():
             
             postal_code_field.clear()
             postal_code_field.send_keys(ship_to['postal_code'])
-            print("✓ Postal code field filled")
+            print("Postal code field filled")
             
         except Exception as e:
             print(f"✗ Error with postal code field: {str(e)}")
@@ -478,7 +483,7 @@ def fill_order_form():
         try:
             comment_field = driver.find_element(By.ID, "ORDER_DESCRIPTION")
             driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alyona\'s helpful minions";', comment_field)
-            print("✓ Comment field filled")
+            print("Comment field filled")
         
         except Exception as e:
             print(f"✗ Error with comment field: {str(e)}")
@@ -493,17 +498,16 @@ def fill_order_form():
             if courier_option:
                 print("Found a courier delivery option as expected (Courier delivery)")
             else:
-                print("Could not find the Courier delivery option")
+                print("✗ Could not find the Courier delivery option")
 
         except Exception as e:
-            print(f"Could not check delivery options: {str(e)}")
+            print(f"✗ Could not check delivery options: {str(e)}")
         
-        take_screenshot("order_form_filled")
-        print("Order form filled successfully")
+        print("✓ Order form filled successfully")
         return True
         
     except Exception as e:
-        print(f"Error filling order form: {str(e)}")
+        print(f"✗ Error filling order form: {str(e)}")
         # Add traceback to see where it's failing
         traceback.print_exc()
         take_screenshot("order_form_error")
@@ -520,7 +524,7 @@ def place_order():
         checkout_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "submit"))
         )
-        print(f"✓ Found checkout button")
+        print(f"Found checkout button")
         
         # Scroll to button
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkout_button)
@@ -543,7 +547,7 @@ def get_order_number():
                 order_num = current_url[-14:]
             else:
                 order_num = current_url[-12:]
-            print(f"✓ ORDER CONFIRMED! Order number: {order_num}")
+            print(f"✓ Order confirmed! Order number: {order_num}")
             return order_num
                 
         else:
@@ -585,7 +589,7 @@ if __name__ == "__main__":
                 step_counter.print_step("Adding to cart via API")
                 
                 if add_to_cart_via_api(offer_id, 1):
-                    step_counter.print_step("Refreshing page to synchronize UI")
+                    print("Refreshing page to synchronize UI")
                     driver.refresh()
                     time.sleep(1)
                     step_counter.print_step("Navigating to cart")
@@ -600,6 +604,8 @@ if __name__ == "__main__":
                                 print(f"Cart total price: {basket_price}")
                                 
                                 step_counter.print_step("Proceeding to checkout")
+                                take_screenshot("basket_before_checkout")
+                                
                                 if proceed_to_checkout():
                                     step_counter.print_step("Getting order page total price")
                                     order_price = get_total_price()
@@ -611,7 +617,7 @@ if __name__ == "__main__":
                                         # Compare prices
                                         if abs(basket_price - order_price) < 0.01:  # Account for floating point precision
                                             print("✓ SUCCESS: Prices match between cart and order pages!")
-                                            print(f"✓ Total price: {order_price}")
+                                            print(f"Total price: {order_price}")
 
                                             if fill_order_form():
                                                 step_counter.print_step("Placing order")
