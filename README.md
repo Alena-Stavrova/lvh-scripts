@@ -10,5 +10,5 @@ These scripts automate order placement that is a part of our regression testing/
 * place an order
 * print a helpful summary in the end (e.g. order number, item's price, cost of delivery etc.)
 
-Currently there is only the US <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/9eb448d4-69e2-4597-953a-573c44ff8f9c" /> script as I'd like to polish it real well before adapting it to other scripts. In the future, I'll add scripts for other countries (we currently have 10).
+Scripts done: US <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/9eb448d4-69e2-4597-953a-573c44ff8f9c" /> EU <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/787a3df3-27a0-4cb7-806d-3aae9e26ffe4" /> (2 / 10)
 
