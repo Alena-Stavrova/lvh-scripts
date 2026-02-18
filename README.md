@@ -1,7 +1,7 @@
 # lvh-scripts
 Stack: Python, Selenium
 
-These scripts automate order placement that is a part of our regression testing/system health check. They imitate real user's behavior:
+These scripts automate order placement that is a part of our regression testing/system health check. They imitate a real user's behavior:
 * go to the main page
 * search for a particular item (chosen randomly from a list of SKUs, the list contains different price groups)
 * add the item to cart
