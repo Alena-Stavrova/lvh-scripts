@@ -39,7 +39,7 @@ def take_screenshot(name):
 
     filename = f"screenshots/{name}_{int(time.time())}.png"
     driver.save_screenshot(filename)
-    print(f"Screenshot saved as: {filename}")
+    print(f"(Screenshot saved as: {filename})")
     return filename
 
 # Step counter class to count step number automatically
@@ -369,36 +369,30 @@ def select_payment_option():
         selected_option_name = random.choice(list(payment_options.keys()))
         selected_option_id = payment_options[selected_option_name]
         
-        print(f"Selected payment option: {selected_option_name} (ID: {selected_option_id})")
-        try:
-            payment_label = wait.until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, f"label[for='{selected_option_id}']"))
-                )
-            # Scroll to the price section to take screenshot
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", payment_label)
-            time.sleep(2)
-            take_screenshot("payment_options")
+        print(f"Selected payment option: {selected_option_name}")
+        payment_label = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, f"label[for='{selected_option_id}']"))
+        )
 
-            # Only interact with the UI if it's not the default option
-            if selected_option_name != "Bank transfer":
-                # Find and click the payment option using its ID
-                try:
-                    print("Found payment label, attempting to click...")
-                    payment_label.click()
-                    time.sleep(1)
-                    return True, selected_option_name
-
-                except Exception as e:
-                    print(f"Failed to select payment option {selected_option_name}: {str(e)}")
-                    return False, selected_option_name
-            else:
-                print("Using default payment option (Bank transfer), no action needed")
+        # Only interact with the UI if it's not the default option
+        if selected_option_name != "Bank transfer":
+            # Find and click the payment option using its ID
+            try:
+                print("Found payment label, attempting to click...")
+                payment_label.click()
+                time.sleep(1)
                 return True, selected_option_name
-            
-        except Exception as e:
-            print("Failed to scroll to payment section")
-            return False, selected_option_name
 
+            except Exception as e:
+                print(f"Failed to select payment option {selected_option_name}: {str(e)}")
+                return False, selected_option_name
+
+        else:
+            print("Using default payment option (Bank transfer), no action needed")
+            return True, selected_option_name
+
+        time.sleep(1)
+        
     except Exception as e:
         print(f"Error in payment selection process: {str(e)}")
         take_screenshot("payment_option_error")
@@ -416,7 +410,7 @@ def fill_order_form():
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
-        print(f"Chosen address in: {str(ship_to['city'])}")
+        print(f"Chosen address in: {str(ship_to['country'])}, {str(ship_to['city'])}")
         
         # Wait for the form to be present
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(
@@ -584,11 +578,15 @@ def fill_order_form():
         print("Checking delivery options...")
         try:
             # Look for the specific courier delivery option
-            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery_id}']")
+            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery_id}']")            
 
             if courier_option:
                 print(f"Found a courier delivery option as expected ({exp_delivery})")
                 my_delivery = exp_delivery
+                # Scroll to the delivery section to take screenshot
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
+                time.sleep(2)
+                take_screenshot("delivery_section")
                 
             else:
                 print(f"✗ Could not find the {exp_delivery} option")
@@ -722,12 +720,11 @@ if __name__ == "__main__":
 
                                     if order_price is not None:
                                         print(f"Order page total price: {order_price}")
-                                        take_screenshot("order_with_price")
                                         
                                         # Compare prices
                                         if abs(basket_price - order_price) < 0.01:  # Account for floating point precision
                                             print("✓ SUCCESS: Prices match between cart and order pages!")
-                                            print(f"Total price: {order_price}")
+                                            take_screenshot("order_with_price")
 
                                             fill_form_success, delivery_option_summary, payment_option_summary = fill_order_form()
                                             if fill_form_success:
