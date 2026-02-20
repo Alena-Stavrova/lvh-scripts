@@ -61,19 +61,19 @@ test_phone = "+79444444444"
 
 # List of SKUS. No free deliveries = no price groups
 #skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917]
-skus = [85940, 73900]
+skus = [85940, 85939]
 items_unavailable = []
 
 # Choose random sku
 def choose_sku():
-    # Make sure chosen SKU is not in unavailable list
-    while True:
-        sku_num = random.randint(0, (len(skus) - 1))
-        sku = skus[sku_num]
-        if sku not in items_unavailable:
-            break
-    return(sku)
-
+    # Get SKUs not yet tried
+    available_skus = [str(sku) for sku in skus if str(sku) not in items_unavailable]
+    
+    if not available_skus:
+        return None  # Signal that no SKUs are left
+    
+    return random.choice(available_skus)
+    
 def choose_address():
     # Define a list of shipping addresses
     shipping_addresses = [
@@ -154,7 +154,7 @@ def search_for_sku(sku):
 
         # Find card SKU line, like "Product ID: 83836"
         card_sku_elem = driver.find_element(By.CLASS_NAME, 'catalog-card__article')
-        card_sku = int(card_sku_elem.text[-6:])
+        card_sku = card_sku_elem.text[-6:]
         print(f"SKU on the product card is: {card_sku}")
         
         # Scroll to the element to take screenshot
@@ -166,7 +166,7 @@ def search_for_sku(sku):
             print("Search completed successfully")
             return True
         else:
-            print(f"✗ First found item doesn't match the search: looked for {sku}, firs item is {card_sku}")
+            print(f"✗ First found item doesn't match the search: looked for {sku}, first item is {card_sku}")
             return False
         
     except Exception as e:
@@ -176,19 +176,29 @@ def search_for_sku(sku):
 
 def is_item_available(sku):
     search_for_sku(sku)
-    try:
-        # Check if cart button exists and is displayed
-        cart_button = driver.find_element(By.CLASS_NAME, "catalog-card__cart")
-        price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
-        unavailable_indicators = ["out of stock", "discontinued", "coming soon"]
+    if sku != None:    
+        # Check if it has an unavailable status
+        try:
+            price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
+            unavailable_indicators = ["out of stock", "discontinued", "coming soon"]
+            if any(indicator in price_text for indicator in unavailable_indicators):
+                return False, price_text
+            else:
+                cart_button = driver.find_element(By.CLASS_NAME, "catalog-card__cart")
+                if cart_button.is_displayed():
+                    return True, "available"
+                else:
+                    return False, "unclear"
 
-        if not cart_button.is_displayed() or any(indicator in price_text for indicator in unavailable_indicators):
-            return False, price_text
+        except Exception as e:
+            return False, str(e)
 
-        return True, "available"
+    # If sku is None, meaning all items are unavailable
+    else:
+        print("✗ All items are UNAVAILABLE BLABLABLA")
+        print("Closing the browser")
+        driver.quit()
         
-    except Exception as e:
-        return False, str(e)
 
 def get_offer_id(sku):
     # Offer ID is in data-id
@@ -596,34 +606,46 @@ if __name__ == "__main__":
         # One option only for payment and delivery
         delivery_option_summary = 'Courier delivery' # default
         payment_option_summary = 'TBD' # default
-        my_sku = choose_sku()
         basket_price = None
         order_price = None
         order_result = None
         # No free shipping, no need to check
 
-        print(f"Chosen SKU: {str(my_sku)}")
-
-        step_counter.print_step("Searching for SKU")
-
         while True:
-            available, status = is_item_available(my_sku)
+            # Only choose the skus that are NOT in unavailable_items
+            my_sku = choose_sku()
+            if my_sku != None:
+                print(f"Chosen SKU: {str(my_sku)}")
+
+                step_counter.print_step("Searching for SKU")
+                # Avaialability check already includes search_for_sku
+                available, status = is_item_available(my_sku)
     
-            if available:
-                print(f"✓ SKU {my_sku} is available")
-                break
-            # If item is NOT available:
-            else:
-                if len(items_unavailable) < len(skus):
-                    print(f"✗ SKU {my_sku} not available: {status}")
-                    items_unavailable.append(str(my_sku))
-                    my_sku = choose_sku()  # Try a different SKU
-                    print(f"Trying new SKU: {my_sku}")
-                    time.sleep(1)  # Small delay before retry
+                if available:
+                    print(f"✓ SKU {my_sku} is available")
+                    break
+                # If item is NOT available:
+                else:
+                    if len(items_unavailable) < len(skus):
+                        print(f"✗ SKU {my_sku} not available: {status}")
+                        items_unavailable.append(str(my_sku))
+                        #my_sku = choose_sku()  # Try a different SKU
+                        #print(f"Trying new SKU: {my_sku}")
+                        time.sleep(1)  # Small delay before retry
+
+                """
                 else:
                     print("✗ All items are UNAVAILABLE")
                     print("Closing the browser")
                     driver.quit()
+                    break
+                    """
+            # If choose_sku() returns None, meaning all items are unavailable
+            else:
+                print("✗ All items are UNAVAILABLE")
+                print("Closing the browser")
+                driver.quit()
+                break
 
         step_counter.print_step("Getting offer ID")
         offer_id = get_offer_id(my_sku)
