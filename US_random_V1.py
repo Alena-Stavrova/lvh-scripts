@@ -60,7 +60,7 @@ wait = WebDriverWait(driver, 20)
 website_main = "https://levenhuk.com/"
 test_phone = "+79444444444"
 
-# List of SKUS. No free deliveries = no price groups
+# List of SKUS. No free deliveries = no price classes
 skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917]
 items_unavailable = []
 
@@ -103,6 +103,7 @@ def extract_price(price_text):
     # Extract numeric price from text
     # Remove all characters except digits and the dot
     clean_text = re.sub(r'[^\d.]', '', price_text)
+    # Won't be commas (American format), no need to remove
     try:
         return float(clean_text)
     except ValueError:
