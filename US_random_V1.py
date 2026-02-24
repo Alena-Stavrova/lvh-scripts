@@ -10,6 +10,7 @@ import re
 import random
 import os
 import traceback
+import sys
 
 # A few helper functions
 # Create the optimized driver (loads fast, limits images)
@@ -64,7 +65,7 @@ test_phone = "+79444444444"
 skus = [85940, 85939]
 items_unavailable = []
 
-# Choose random sku
+# Choose random sku, returns a string
 def choose_sku():
     # Get SKUs not yet tried
     available_skus = [str(sku) for sku in skus if str(sku) not in items_unavailable]
@@ -73,6 +74,7 @@ def choose_sku():
         return None  # Signal that no SKUs are left
     
     return random.choice(available_skus)
+    
     
 def choose_address():
     # Define a list of shipping addresses
@@ -154,7 +156,7 @@ def search_for_sku(sku):
 
         # Find card SKU line, like "Product ID: 83836"
         card_sku_elem = driver.find_element(By.CLASS_NAME, 'catalog-card__article')
-        card_sku = card_sku_elem.text[-6:]
+        card_sku = card_sku_elem.text[-5:]
         print(f"SKU on the product card is: {card_sku}")
         
         # Scroll to the element to take screenshot
@@ -175,31 +177,23 @@ def search_for_sku(sku):
         return False
 
 def is_item_available(sku):
-    search_for_sku(sku)
-    if sku != None:    
-        # Check if it has an unavailable status
-        try:
-            price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
-            unavailable_indicators = ["out of stock", "discontinued", "coming soon"]
-            if any(indicator in price_text for indicator in unavailable_indicators):
-                return False, price_text
+    # Is only applied when sku != None
+    try:
+        search_for_sku(sku)
+        price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
+        unavailable_indicators = ["out of stock", "discontinued", "coming soon"]
+        if any(indicator in price_text for indicator in unavailable_indicators):
+            return False, price_text
+        else:
+            cart_button = driver.find_element(By.CLASS_NAME, "catalog-card__cart")
+            if cart_button.is_displayed():
+                return True, "available"
             else:
-                cart_button = driver.find_element(By.CLASS_NAME, "catalog-card__cart")
-                if cart_button.is_displayed():
-                    return True, "available"
-                else:
-                    return False, "unclear"
+                return False, "unclear"
 
-        except Exception as e:
-            return False, str(e)
-
-    # If sku is None, meaning all items are unavailable
-    else:
-        print("✗ All items are UNAVAILABLE BLABLABLA")
-        print("Closing the browser")
-        driver.quit()
-        
-
+    except Exception as e:
+        return False, str(e)
+    
 def get_offer_id(sku):
     # Offer ID is in data-id
     try:
@@ -626,26 +620,19 @@ if __name__ == "__main__":
                     break
                 # If item is NOT available:
                 else:
-                    if len(items_unavailable) < len(skus):
+                    if len(items_unavailable) < len(skus): 
                         print(f"✗ SKU {my_sku} not available: {status}")
                         items_unavailable.append(str(my_sku))
                         #my_sku = choose_sku()  # Try a different SKU
                         #print(f"Trying new SKU: {my_sku}")
                         time.sleep(1)  # Small delay before retry
 
-                """
-                else:
-                    print("✗ All items are UNAVAILABLE")
-                    print("Closing the browser")
-                    driver.quit()
-                    break
-                    """
             # If choose_sku() returns None, meaning all items are unavailable
             else:
                 print("✗ All items are UNAVAILABLE")
                 print("Closing the browser")
                 driver.quit()
-                break
+                sys.exit()
 
         step_counter.print_step("Getting offer ID")
         offer_id = get_offer_id(my_sku)
