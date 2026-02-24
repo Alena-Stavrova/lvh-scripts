@@ -65,7 +65,7 @@ skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
 skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
 items_unavailable = []
 
-# Choose random sku, returns a string
+# Choose random sku, return a string
 def choose_sku():
     # Try both price classes if needed
     price_classes_to_try = [0, 1]

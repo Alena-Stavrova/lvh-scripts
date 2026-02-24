@@ -51,9 +51,29 @@ class StepCounter:
         print(f"\n--- Step {self.step}: {message} ---")
         self.step += 1
 
-# Ask user to choose payment option (no choice for delivery)
-delivery_option = None
-delivery_selector = 'label[for="ID_SHIPPING_METHOD_ID_4"]'
+# Initialize driver and wait
+user_email = input("Enter email: ")
+driver = create_optimized_driver()
+driver.maximize_window()
+wait = WebDriverWait(driver, 20)
+website_main = "https://eu.levenhuk.com/"
+test_phone = "+79444444444"
+
+# List of SKUS and price classes
+skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
+skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
+items_unavailable = []
+
+# Choose sku for the chosen payment option
+def choose_sku(price_class):
+    # Get SKUs not yet tried
+    skus_list = "skus_" + str(price_class)
+    available_skus = [str(sku) for sku in skus_list if str(sku) not in items_unavailable]
+    
+    if not available_skus:
+        return None  # Signal that no SKUs are left
+    
+    return random.choice(available_skus)
 
 # Key in the bigger dictionary = user input numbers
 payment_options = {
@@ -70,47 +90,6 @@ payment_options = {
      'id': None} # TBD method doesn't have a button
 }
 
-# Get payment option from user
-while True:
-    try:
-        selected_payment = int(input("Please select the payment option. 1 = Bank transfer, 2 = Credit/Debit Card, 3 = PayPal, 4 = TBD (items under 70€). Enter your option: "))
-        if selected_payment in [1, 2, 3]:
-            price_class = 1
-            break
-        elif selected payment == 4:
-            price_class = 0
-            break
-        else:
-            print("✗ Please enter a number between 1 and 4.")
-    except ValueError:
-        print("✗ Please enter a valid number (1, 2, 3, or 4).")
-
-selected_option_name = payment_options[selected_payment]['name_en']
-selected_option_id = payment_options[selected_payment]['id']
-print(f"Selected payment option: {selected_option_name}")
-
-# Initialize driver and wait
-user_email = input("Enter email: ")
-driver = create_optimized_driver()
-driver.maximize_window()
-wait = WebDriverWait(driver, 20)
-website_main = "https://eu.levenhuk.com/"
-test_phone = "+79444444444"
-
-# Choose random sku for selected payment
-def choose_sku():
-    # Dictionary with 2 price classes
-    items = {
-    "skus_under_70": [83836, 83820, 84547, 84545, 83089],
-    "skus_70_plus": [84558, 84638, 84087, 83842, 85574]
-    }
-    # Price class 0 - under 70, price class 1 - 70+ EU
-    if price_class == 0:
-        sku = items["skus_under_70"][item_num]
-    else:
-        sku = items["skus_70_plus"][item_num]
-    return(sku)
-
 def choose_address():
     # Define a list of shipping addresses
     shipping_addresses = [
@@ -121,10 +100,10 @@ def choose_address():
         'postal_code': '90120'
     },
     {
-        'country': 'Greece',
-        'city': 'Thessaloniki', 
-        'address': 'Kassandrou 37',
-        'postal_code': '54633'
+        'country': 'Ireland',
+        'city': 'Galway', 
+        'address': '105 Forster Ct',
+        'postal_code': 'H91 D95P'
     },
     {
         'country': 'Slovenia',
@@ -210,7 +189,7 @@ def search_for_sku(sku):
 
         # Find card SKU line, like "Product ID: 83836"
         card_sku_elem = driver.find_element(By.CLASS_NAME, 'catalog-card__article')
-        card_sku = int(card_sku_elem.text[-6:])
+        card_sku = card_sku_elem.text[-5:]
         print(f"SKU on the product card is: {card_sku}")
         
         # Scroll to the element to take screenshot
@@ -218,12 +197,6 @@ def search_for_sku(sku):
         time.sleep(2)
         take_screenshot("search_results")
 
-        # Check if item is out of stock (maybe add price verification later)
-        item_price = driver.find_element(By.CLASS_NAME, 'catalog-card__price').text
-        if item_price == "Out of stock":
-            # Just add a warning for now. Later can reselect item
-            print("WARNING: Can't add this item to cart")
-                  
         if sku == card_sku:        
             print("✓ Search completed successfully")
             return True
@@ -235,6 +208,24 @@ def search_for_sku(sku):
         print(f"✗ Search failed: {str(e)}")
         take_screenshot("search_error")
         return False
+
+def is_item_available(sku):
+    # Is only applied when sku != None
+    try:
+        search_for_sku(sku)
+        price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
+        unavailable_indicators = ["out of stock", "discontinued", "coming soon"]
+        if any(indicator in price_text for indicator in unavailable_indicators):
+            return False, price_text
+        else:
+            cart_button = driver.find_element(By.CLASS_NAME, "catalog-card__cart")
+            if cart_button.is_displayed():
+                return True, "available"
+            else:
+                return False, "unclear"
+
+    except Exception as e:
+        return False, str(e)
 
 def get_offer_id(sku):
     # Offer ID is in data-id
@@ -390,12 +381,11 @@ def proceed_to_checkout():
         return False
 
 def click_payment_option(option_id):
-    # Exclude default pre-selected button (Bank transfer) and no button (TBD under 70)
+    # Click button if not TBD and not default option
     try:
         payment_label = wait.until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, f"label[for='{option_id}']"))
         )
-        payment_label:
         payment_label.click()
         time.sleep(1)
         return True
@@ -403,18 +393,9 @@ def click_payment_option(option_id):
     except Exception as e:
         print(f"Can't find or click the payment option: {str(e)}")
         take_screenshot("payment_option_error")
-        return False, "Error"
+        return False
 
-""" - Edit THIS
 def fill_order_form():
-    # Initialize expected delivery and payment options
-    my_delivery = None
-    exp_delivery = "Courier delivery"
-    exp_delivery_id = "ID_SHIPPING_METHOD_ID_4"
-    
-    my_payment = None
-    default_payment = "TBD"
-
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
@@ -586,11 +567,12 @@ def fill_order_form():
         print("Checking delivery options...")
         try:
             # Look for the specific courier delivery option
-            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery_id}']")            
+            #courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery_id}']")
+            courier_option = driver.find_element(By.CSS_SELECTOR, default_dselector) 
 
             if courier_option:
                 print(f"Found a courier delivery option as expected ({exp_delivery})")
-                my_delivery = exp_delivery
+                delivery_option_sumary = default_dbutton
                 # Scroll to the delivery section to take screenshot
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
                 time.sleep(2)
@@ -602,31 +584,38 @@ def fill_order_form():
         except Exception as e:
             print(f"✗ Could not check delivery options: {str(e)}")
 
-        if price_class == 1:
+        # Click button for items 70+ EU unless default (Bank transfer)
+        if price_class == 1 and popt_name != "Bank transfer":
             # Select payment option, if price is 70+ EU
-            option_sel_success, chosen_payment_option = select_payment_option()
+            option_click_success = click_payment_option()
+            time.sleep(2)
 
-            # If selection failed, can still place an order with the default option
-            if not option_sel_success:
-                print("✗ Payment selection failed, but continuing with order process")
-            # If selection worked
+            if not option_click_success:
+                print("✗ Payment selection failed")
+                print("WARNING: payment option {payment_option} didn't work as expected - please check manually. Quitting the program.")
+                driver.quit()
+                sys.exit()
             else:
-                my_payment = chosen_payment_option
+                payment_option_summary = popt_name
+                
+        elif price_class == 1: # Default option, no need to click
+            print("Using default payment option for itmes 70+€")
+            payment_option_summary = default_pbutton
 
         else:
-            # Default TBD payment for items under 70 EU
-            print("Order value below 70€, using default payment option")
-            my_payment = default_payment
+            # Items under 70 EU, no button
+            print("Using default payment option for itmes under 70€")
+            payment_option_summary = no_pbutton
 
         print("✓ Order form filled successfully")
-        return True, my_delivery, my_payment
+        return True
         
     except Exception as e:
         print(f"✗ Error filling order form: {str(e)}")
         # Add traceback to see where it's failing
         traceback.print_exc()
         take_screenshot("order_form_error")
-        return False, my_delivery, my_payment
+        return False
 
 def place_order():
     # Finalize the order by clicking the checkout button on the order form
@@ -679,6 +668,33 @@ def get_order_number():
 # Main execution
 if __name__ == "__main__":
     try:
+        # Get payment option from user      
+        while True:
+            try:
+                selected_payment = int(input("Please select the payment option. 1 = Bank transfer, 2 = Credit/Debit Card, 3 = PayPal, 4 = TBD (items under 70€). Enter your option: "))
+                if selected_payment in [1, 2, 3]:
+                    price_class = 1
+                    break
+                elif selected_payment == 4:
+                    price_class = 0
+                    break
+                else:
+                    print("✗ Please enter a number between 1 and 4.")
+                    
+            except ValueError:
+                print("✗ Please enter a valid number (1, 2, 3, or 4).")
+
+        popt_name = payment_options[selected_payment]['name_en']
+        popt_id = payment_options[selected_payment]['id']
+        default_pbutton = "Bank transfer"
+        no_pbutton = "TBD"
+        print(f"Selected payment option: {selected_option_name}")
+
+        # No delivery options - nothing to choose
+        delivery_option = None
+        default_dbutton = "Courier delivery"
+        default_dselector = 'label[for="ID_SHIPPING_METHOD_ID_4"]'
+
         # Initialize step counter
         step_counter = StepCounter()
         print("Running EU script")
@@ -693,11 +709,33 @@ if __name__ == "__main__":
         order_result = None
         # Add free shipping check later
 
-        print(f"Chosen SKU: {str(my_sku)}")
+        while True:
+            # Only choose the skus that are NOT in unavailable_items
+            my_sku, price_class = choose_sku()
+            if my_sku != None:
+                print(f"Chosen SKU: {str(my_sku)}")
 
-        step_counter.print_step("Searching for SKU")
+                step_counter.print_step("Searching for SKU")
+                # Avaialability check already includes search_for_sku
+                available, status = is_item_available(my_sku)
+    
+                if available:
+                    print(f"✓ SKU {my_sku} is available")
+                    break
+                # If item is NOT available:
+                else:
+                    if len(items_unavailable) < len(skus): 
+                        print(f"✗ SKU {my_sku} not available: {status}")
+                        items_unavailable.append(str(my_sku))
+                        time.sleep(1)  # Small delay before retry
+
+            # If choose_sku() returns None, meaning all items are unavailable
+            else:
+                print("✗ All items are UNAVAILABLE")
+                print("Closing the browser")
+                driver.quit()
+                sys.exit()
         
-        if search_for_sku(my_sku):
             step_counter.print_step("Getting offer ID")
             offer_id = get_offer_id(my_sku)
 
@@ -801,7 +839,6 @@ if __name__ == "__main__":
    
     finally:
         driver.quit()
-        """
 
 
 
