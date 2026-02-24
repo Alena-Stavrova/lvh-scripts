@@ -61,8 +61,7 @@ website_main = "https://levenhuk.com/"
 test_phone = "+79444444444"
 
 # List of SKUS. No free deliveries = no price groups
-#skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917]
-skus = [85940, 85939]
+skus = [72481, 77113, 61022, 69073, 79574, 81704, 74156, 72615, 84086, 82917]
 items_unavailable = []
 
 # Choose random sku, returns a string
@@ -74,8 +73,7 @@ def choose_sku():
         return None  # Signal that no SKUs are left
     
     return random.choice(available_skus)
-    
-    
+      
 def choose_address():
     # Define a list of shipping addresses
     shipping_addresses = [
@@ -623,8 +621,6 @@ if __name__ == "__main__":
                     if len(items_unavailable) < len(skus): 
                         print(f"✗ SKU {my_sku} not available: {status}")
                         items_unavailable.append(str(my_sku))
-                        #my_sku = choose_sku()  # Try a different SKU
-                        #print(f"Trying new SKU: {my_sku}")
                         time.sleep(1)  # Small delay before retry
 
             # If choose_sku() returns None, meaning all items are unavailable
