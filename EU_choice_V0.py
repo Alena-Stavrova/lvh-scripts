@@ -60,18 +60,23 @@ website_main = "https://eu.levenhuk.com/"
 test_phone = "+79444444444"
 
 # List of SKUS and price classes
-skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
-skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
+sku_lists = {
+    0: [83836, 83820, 84547, 84545, 83089],  # Under 70 EU
+    1: [84558, 84638, 84087, 83842, 85574]   # 70+ EU
+}
 items_unavailable = []
 
 # Choose sku for the chosen payment option
 def choose_sku(price_class):
-    # Get SKUs not yet tried
-    skus_list = "skus_" + str(price_class)
+    # Get the correct list from the dictionary
+    skus_list = sku_lists[price_class]  
+    print(f"Using SKU list for class {price_class}")
+    
     available_skus = [str(sku) for sku in skus_list if str(sku) not in items_unavailable]
+    print(f"Available SKUs: {available_skus}")
     
     if not available_skus:
-        return None  # Signal that no SKUs are left
+        return None
     
     return random.choice(available_skus)
 
@@ -562,7 +567,7 @@ def fill_order_form():
         except Exception as e:
             print(f"✗ Error with comment field: {str(e)}")
             take_screenshot("comment_field_error")
-        
+
         # Check delivery options
         print("Checking delivery options...")
         try:
@@ -571,8 +576,8 @@ def fill_order_form():
             courier_option = driver.find_element(By.CSS_SELECTOR, default_dselector) 
 
             if courier_option:
-                print(f"Found a courier delivery option as expected ({exp_delivery})")
-                delivery_option_sumary = default_dbutton
+                print(f"Found 1 delivery option as expected ({default_dbutton})")
+                delivery_option = default_dbutton
                 # Scroll to the delivery section to take screenshot
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
                 time.sleep(2)
@@ -587,7 +592,7 @@ def fill_order_form():
         # Click button for items 70+ EU unless default (Bank transfer)
         if price_class == 1 and popt_name != "Bank transfer":
             # Select payment option, if price is 70+ EU
-            option_click_success = click_payment_option()
+            option_click_success = click_payment_option(popt_id)
             time.sleep(2)
 
             if not option_click_success:
@@ -688,12 +693,15 @@ if __name__ == "__main__":
         popt_id = payment_options[selected_payment]['id']
         default_pbutton = "Bank transfer"
         no_pbutton = "TBD"
-        print(f"Selected payment option: {selected_option_name}")
+        print(f"Selected payment option: {popt_name}")
 
         # No delivery options - nothing to choose
         delivery_option = None
         default_dbutton = "Courier delivery"
         default_dselector = 'label[for="ID_SHIPPING_METHOD_ID_4"]'
+
+        #driver = create_optimized_driver()
+        #driver.maximize_window()
 
         # Initialize step counter
         step_counter = StepCounter()
@@ -703,7 +711,6 @@ if __name__ == "__main__":
         # Initialize all variables for the final summary
         delivery_option_summary = None
         payment_option_summary = None
-        price_class, my_sku = choose_sku()
         basket_price = None
         order_price = None
         order_result = None
@@ -711,7 +718,7 @@ if __name__ == "__main__":
 
         while True:
             # Only choose the skus that are NOT in unavailable_items
-            my_sku, price_class = choose_sku()
+            my_sku = choose_sku(price_class)
             if my_sku != None:
                 print(f"Chosen SKU: {str(my_sku)}")
 
@@ -722,6 +729,7 @@ if __name__ == "__main__":
                 if available:
                     print(f"✓ SKU {my_sku} is available")
                     break
+                
                 # If item is NOT available:
                 else:
                     if len(items_unavailable) < len(skus): 
@@ -736,78 +744,76 @@ if __name__ == "__main__":
                 driver.quit()
                 sys.exit()
         
-            step_counter.print_step("Getting offer ID")
-            offer_id = get_offer_id(my_sku)
+        step_counter.print_step("Getting offer ID")
+        offer_id = get_offer_id(my_sku)
 
-            if offer_id:
-                step_counter.print_step("Adding to cart via API")
+        if offer_id:
+            step_counter.print_step("Adding to cart via API")
                 
-                if add_to_cart_via_api(offer_id, 1):
-                    print("Refreshing page to synchronize UI")
-                    driver.refresh()
-                    time.sleep(1)
-                    step_counter.print_step("Navigating to cart")
+            if add_to_cart_via_api(offer_id, 1):
+                print("Refreshing page to synchronize UI")
+                driver.refresh()
+                time.sleep(1)
+                step_counter.print_step("Navigating to cart")
 
-                    if navigate_to_cart_directly():
-                        step_counter.print_step("Checking cart contents")
-                        if check_cart_contents(my_sku):
-                            step_counter.print_step("Getting cart total price")
-                            basket_price = get_total_price()
+                if navigate_to_cart_directly():
+                    step_counter.print_step("Checking cart contents")
+                    if check_cart_contents(my_sku):
+                        step_counter.print_step("Getting cart total price")
+                        basket_price = get_total_price()
 
-                            if basket_price is not None:
-                                print(f"Cart total price: {basket_price}")
+                        if basket_price is not None:
+                            print(f"Cart total price: {basket_price}")
                                 
-                                step_counter.print_step("Proceeding to checkout")
-                                take_screenshot("basket_before_checkout")
+                            step_counter.print_step("Proceeding to checkout")
+                            take_screenshot("basket_before_checkout")
                                 
-                                if proceed_to_checkout():
-                                    step_counter.print_step("Getting order page total price")
-                                    order_price = get_total_price()
+                            if proceed_to_checkout():
+                                step_counter.print_step("Getting order page total price")
+                                order_price = get_total_price()
 
-                                    if order_price is not None:
-                                        print(f"Order page total price: {order_price}")
+                                if order_price is not None:
+                                    print(f"Order page total price: {order_price}")
                                         
-                                        # Compare prices
-                                        if abs(basket_price - order_price) < 0.01:  # Account for floating point precision
-                                            print("✓ SUCCESS: Prices match between cart and order pages!")
-                                            take_screenshot("order_with_price")
+                                    # Compare prices
+                                    if abs(basket_price - order_price) < 0.01:  # Account for floating point precision
+                                        print("✓ SUCCESS: Prices match between cart and order pages!")
+                                        take_screenshot("order_with_price")
 
-                                            fill_form_success, delivery_option_summary, payment_option_summary = fill_order_form()
-                                            if fill_form_success:
-                                                step_counter.print_step("Placing order")
-                                                order_result = place_order()
+                                        fill_form_success = fill_order_form()
+                                        if fill_form_success:
+                                            step_counter.print_step("Placing order")
+                                            order_result = place_order()
 
-                                                if order_result:
-                                                    print("✓ Order successfully placed!")
-                                                    time.sleep(3)
-                                                    step_counter.print_step("Getting the order number")
-                                                    test_order_num = get_order_number()
-
-                                                else:
-                                                    print("✗ Failed to place order")                                                
+                                            if order_result:
+                                                print("✓ Order successfully placed!")
+                                                time.sleep(3)
+                                                step_counter.print_step("Getting the order number")
+                                                test_order_num = get_order_number()
 
                                             else:
-                                                print("✗ Failed to fill order form") 
-                                            
+                                                print("✗ Failed to place order")                                                
+
                                         else:
-                                            print(f"✗ WARNING: Prices don't match! Cart: {basket_price}, Order: {order_price}")
-                                                                                       
+                                            print("✗ Failed to fill order form") 
+                                            
                                     else:
-                                        print("✗ Could not extract price from order page")
+                                        print(f"✗ WARNING: Prices don't match! Cart: {basket_price}, Order: {order_price}")
+                                                                                       
                                 else:
-                                    print("\n✗ Failed to proceed to checkout")
+                                    print("✗ Could not extract price from order page")
                             else:
-                                print("\n✗ Could not extract price from cart page")
+                                print("\n✗ Failed to proceed to checkout")
                         else:
-                            print("\n✗ Item was added but not found in cart")
+                            print("\n✗ Could not extract price from cart page")
                     else:
-                        print("\n✗ Failed to navigate to cart")
+                        print("\n✗ Item was added but not found in cart")
                 else:
-                    print("\n✗ Failed to add item to cart via API")
+                    print("\n✗ Failed to navigate to cart")
             else:
-                print("\n✗ Could not find offer ID for the product")
+                print("\n✗ Failed to add item to cart via API")
         else:
-            print("\n✗ Failed to search for SKU")
+            print("\n✗ Could not find offer ID for the product")
         
         print("\nProcess completed. Browser will close in 10 seconds.")
 
@@ -818,7 +824,7 @@ if __name__ == "__main__":
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {str(my_sku)}")
         print(f"Item price: {order_price if order_price else 'N/A'}€")
-        print(f"Delivery option: {delivery_option_summary}")
+        print(f"Delivery option: {delivery_option}")
         print(f"Payment option: {payment_option_summary}")
         
         # Price match check
