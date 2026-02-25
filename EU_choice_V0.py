@@ -73,7 +73,7 @@ def choose_sku(price_class):
     print(f"Using SKU list for class {price_class}")
     
     available_skus = [str(sku) for sku in skus_list if str(sku) not in items_unavailable]
-    print(f"Available SKUs: {available_skus}")
+    #print(f"Available SKUs: {available_skus}")
     
     if not available_skus:
         return None
@@ -401,6 +401,7 @@ def click_payment_option(option_id):
         return False
 
 def fill_order_form():
+    global delivery_option_summary, payment_option_summary # We'll modify the global variable
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
@@ -577,7 +578,7 @@ def fill_order_form():
 
             if courier_option:
                 print(f"Found 1 delivery option as expected ({default_dbutton})")
-                delivery_option = default_dbutton
+                delivery_option_summary = default_dbutton
                 # Scroll to the delivery section to take screenshot
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
                 time.sleep(2)
@@ -691,30 +692,27 @@ if __name__ == "__main__":
 
         popt_name = payment_options[selected_payment]['name_en']
         popt_id = payment_options[selected_payment]['id']
+        payment_option_summary = None
         default_pbutton = "Bank transfer"
         no_pbutton = "TBD"
         print(f"Selected payment option: {popt_name}")
 
         # No delivery options - nothing to choose
-        delivery_option = None
+        delivery_option_summary = None
         default_dbutton = "Courier delivery"
         default_dselector = 'label[for="ID_SHIPPING_METHOD_ID_4"]'
 
-        #driver = create_optimized_driver()
-        #driver.maximize_window()
-
-        # Initialize step counter
-        step_counter = StepCounter()
-        print("Running EU script")
-        print("---------------LOGS FOR NERDS---------------")
-
         # Initialize all variables for the final summary
-        delivery_option_summary = None
-        payment_option_summary = None
         basket_price = None
         order_price = None
         order_result = None
         # Add free shipping check later
+
+       
+        # Initialize step counter
+        step_counter = StepCounter()
+        print("Running EU script")
+        print("---------------LOGS FOR NERDS---------------")
 
         while True:
             # Only choose the skus that are NOT in unavailable_items
@@ -824,7 +822,7 @@ if __name__ == "__main__":
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {str(my_sku)}")
         print(f"Item price: {order_price if order_price else 'N/A'}€")
-        print(f"Delivery option: {delivery_option}")
+        print(f"Delivery option: {delivery_option_summary}")
         print(f"Payment option: {payment_option_summary}")
         
         # Price match check
