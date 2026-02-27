@@ -15,4 +15,5 @@ Scripts done: US <img width="16" height="11" alt="image" src="https://github.com
 For each country*, there will be 2 scripts:
 * random: choose payment and/or delivery option randomly; used for daily smoke tests where we typically test 1 random flow
 * choice: choose payment and/or delivery option that the user selects; can test any flow within possible payment/delivery combinations; used for montly system health check where we typically test all flows or all flows with 3rd-party systems
+*Except US because they only have 1 flow available
 
