@@ -622,6 +622,20 @@ def fill_order_form():
         take_screenshot("order_form_error")
         return False
 
+def verify_free_shipping():
+    try:
+        print("Verifying free shipping...")
+        time.sleep(2)
+        free_shipping_element = wait.until(
+            EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
+        )    
+        return free_shipping_element.text
+            
+    except Exception as e:
+        print(f"Error verifying free shipping: {str(e)}")
+        take_screenshot("free_shipping_verification_error")
+        return False
+
 def place_order():
     # Finalize the order by clicking the checkout button on the order form
     try:
@@ -699,6 +713,11 @@ if __name__ == "__main__":
 
     # Determine price class based on payment
     price_class = 1 if selected_payment in [1, 2, 3] else 0
+    if price_class == 1:
+        exp_ship_fee = "Free shipping"
+    else:
+        exp_ship_fee = "TBD"
+    ship_verified = False
 
     # Get payment option details
     popt_name = payment_options[selected_payment]['name_en']
@@ -794,17 +813,25 @@ if __name__ == "__main__":
 
                                         fill_form_success = fill_order_form()
                                         if fill_form_success:
-                                            step_counter.print_step("Placing order")
-                                            order_result = place_order()
+                                            ship_cost = verify_free_shipping()
+                                            if ship_cost == exp_ship_fee:
+                                                ship_verified = True
+                                                print(f"✓ Shipping fee as expected: {ship_cost}")
+                                            
+                                                step_counter.print_step("Placing order")
+                                                order_result = place_order()
 
-                                            if order_result:
-                                                print("✓ Order successfully placed!")
-                                                time.sleep(3)
-                                                step_counter.print_step("Getting the order number")
-                                                test_order_num = get_order_number()
+                                                if order_result:
+                                                    print("✓ Order successfully placed!")
+                                                    time.sleep(3)
+                                                    step_counter.print_step("Getting the order number")
+                                                    test_order_num = get_order_number()
 
+                                                else:
+                                                    print("✗ Failed to place order")
+                                                    
                                             else:
-                                                print("✗ Failed to place order")                                                
+                                                print(f"✗ Shipping fees don't match: expected {exp_ship_fee}, found {ship_cost}")
 
                                         else:
                                             print("✗ Failed to fill order form") 
@@ -847,6 +874,11 @@ if __name__ == "__main__":
                 print(f"Cart and order prices match: ✗ No (Cart: {basket_price}, Order: {order_price})")
         else:
             print("Cart and order prices match: N/A (missing price data)")
+        # Shipping fees match check
+        if ship_verified:
+            print(f"Shipping fee: ✓ As expected, {ship_cost}")
+        else:
+            print("✗Shipping fees don't match")
         
         print("----------END----------")
         time.sleep(10)
