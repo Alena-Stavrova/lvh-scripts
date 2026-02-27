@@ -202,7 +202,7 @@ def search_for_sku(sku):
         take_screenshot("search_results")
 
         if sku == card_sku:        
-            print("✓ Search completed successfully")
+            print("Search completed successfully")
             return True
         else:
             print(f"✗ First found item doesn't match the search: looked for {sku}, firs item is {card_sku}")
@@ -703,7 +703,7 @@ if __name__ == "__main__":
     # Get payment option details
     popt_name = payment_options[selected_payment]['name_en']
     popt_id = payment_options[selected_payment]['id']
-    print(f"\nSelected: {popt_name} (Class: {'70+€' if price_class == 1 else 'under 70€'})")
+    print(f"\nSelected: {popt_name} (Price class: {'70+€' if price_class == 1 else 'under 70€'})")
         
     print("\nLaunching browser...")
     driver = create_optimized_driver()
@@ -734,7 +734,7 @@ if __name__ == "__main__":
             if my_sku != None:
                 print(f"Chosen SKU: {str(my_sku)}")
 
-                step_counter.print_step("Searching for SKU")
+                step_counter.print_step("Searching for SKU, checking its availability")
                 # Avaialability check already includes search_for_sku
                 available, status = is_item_available(my_sku)
     
