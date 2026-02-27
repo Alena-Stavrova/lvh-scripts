@@ -13,7 +13,8 @@ These scripts automate order placement that is a part of our regression testing/
 Scripts done: US <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/9eb448d4-69e2-4597-953a-573c44ff8f9c" /> EU <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/787a3df3-27a0-4cb7-806d-3aae9e26ffe4" /> (2 / 10)
 
 For each country*, there will be 2 scripts:
-* random: choose payment and/or delivery option randomly; used for daily smoke tests where we typically test 1 random flow
-* choice: choose payment and/or delivery option that the user selects; can test any flow within possible payment/delivery combinations; used for montly system health check where we typically test all flows or all flows with 3rd-party systems
+* <b>random</b>: choose payment and/or delivery option randomly; used for daily smoke tests where we typically test 1 random flow
+* <b>choice</b>: choose payment and/or delivery option that the user selects; can test any flow within possible payment/delivery combinations; used for montly system health check where we typically test all flows or all flows with 3rd-party systems
+
 *Except US because they only have 1 flow available
 
