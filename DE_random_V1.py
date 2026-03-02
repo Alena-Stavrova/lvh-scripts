@@ -114,11 +114,12 @@ def choose_address():
     return(address) #returns a dictionary
 
 def extract_price(price_text):
+    # IMPORTANT - price is for some reason with (.) on DE, trying to find out if it's ok
     # Extract numeric price from text
     # Remove all characters except digits and the comma (EU format)
-    clean_text = re.sub(r'[^\d,]', '', price_text)
+    clean_text = re.sub(r'[^\d.]', '', price_text)
     # Replace comma with dot
-    clean_text = clean_text.replace(',', '.')    
+    # clean_text = clean_text.replace(',', '.')    
     try:
         return float(clean_text)
     except ValueError:
