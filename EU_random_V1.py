@@ -64,6 +64,7 @@ test_phone = "+79444444444"
 skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
 skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
 items_unavailable = []
+total_skus = len(skus_0) + len(skus_1)
 
 # Choose random sku, return a string
 def choose_sku():
@@ -734,7 +735,7 @@ if __name__ == "__main__":
                     break
                 # If item is NOT available:
                 else:
-                    if len(items_unavailable) < len(skus): 
+                    if len(items_unavailable) < total_skus: 
                         print(f"✗ SKU {my_sku} not available: {status}")
                         items_unavailable.append(str(my_sku))
                         time.sleep(1)  # Small delay before retry
