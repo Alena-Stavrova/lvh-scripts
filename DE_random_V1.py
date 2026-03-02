@@ -64,6 +64,7 @@ test_phone = "+79444444444"
 skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
 skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
 items_unavailable = []
+total_skus = len(skus_0) + len(skus_1)
 
 # Choose random sku, return a string
 def choose_sku():
@@ -402,9 +403,9 @@ def select_payment_option():
 
         # Randomly select any payment option
         selected_option = random.choice(list(payment_options.keys()))
-        selected_option_local_name = payment_options[selected_option][local_name]
-        selected_option_en_name = payment_options[selected_option][en_name]
-        selected_option_id = payment_options[selected_option][opt_id]
+        selected_option_local_name = payment_options[selected_option]['local_name']
+        selected_option_en_name = payment_options[selected_option]['en_name']
+        selected_option_id = payment_options[selected_option]['opt_id']
         
         print(f"Selected payment option: {selected_option_local_name}({selected_option_en_name})")
         payment_label = wait.until(EC.element_to_be_clickable(
@@ -607,18 +608,18 @@ def fill_order_form():
         print("Checking delivery options...")
         try:
             # Look for the specific courier delivery option
-            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery[exp_delivery_id]}']")            
+            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery['exp_delivery_id']}']")
 
             if courier_option:
-                print(f"Found a courier delivery option as expected: {exp_delivery[exp_delivery_local_name]}")
-                my_delivery = exp_delivery[exp_delivery_local_name]
+                print(f"Found a courier delivery option as expected: {exp_delivery['exp_delivery_local_name']}")
+                my_delivery = exp_delivery['exp_delivery_local_name']
                 # Scroll to the delivery section to take screenshot
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
                 time.sleep(2)
                 take_screenshot("delivery_section")
                 
             else:
-                print(f"✗ Could not find the {exp_delivery[exp_delivery_local_name]} option")
+                print(f"✗ Could not find the {exp_delivery['exp_delivery_local_name']} option")
 
         except Exception as e:
             print(f"✗ Could not check delivery options: {str(e)}")
@@ -754,7 +755,7 @@ if __name__ == "__main__":
                     break
                 # If item is NOT available:
                 else:
-                    if len(items_unavailable) < len(skus): 
+                    if len(items_unavailable) < total_skus: 
                         print(f"✗ SKU {my_sku} not available: {status}")
                         items_unavailable.append(str(my_sku))
                         time.sleep(1)  # Small delay before retry
