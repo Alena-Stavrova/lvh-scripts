@@ -375,12 +375,12 @@ def proceed_to_checkout():
         take_screenshot("checkout_error")
         return False
 
-def select_payment_option():
+def select_payment_option(delivery_option):
     # Only available for items 70+ EU (otherwise TBD, default)
     try:
         print("Selecting payment option...")
         
-        # Define payment options with their corresponding IDs (equal probability)
+        # Define payment options with their corresponding IDs 
         payment_options = {
             "bonifico bancario": {
                 "local_name": "bonifico bancario",
@@ -404,14 +404,30 @@ def select_payment_option():
                 }
         }
 
+        # All options available for standard delivery
+        if delivery_option == "Consegna standard (standard)":
+            # Select random payment option from keys
+            selected_poption = random.choice(list(payment_options.keys()))
+            selected_poption_local_name = payment_options[selected_poption]['local_name']
+            selected_poption_en_name = payment_options[selected_poption]['en_name']
+            selected_poption_id = payment_options[selected_poption]['opt_id']
+            
+        # Only 2 options available for express delivery
+        elif delivery_option == "Consegna espressa (express)":
+            # Choose randomly opt_id
+            selected_poption_id = "ID_PAY_SYSTEM_ID_" + (st(random.randint(23, 24))            
+            # Then get the key from it
+            for key, val in payment_options.items():
+                if val['opt_id'] == selected_poption_id:
+                    selected_poption_local_name = val['local_name']
+                    selected_poption_en_name = val['en_name']
+                    break
 
-        # continue from here
-        # Randomly select any payment option
-        selected_option = random.choice(list(payment_options.keys()))
-        selected_option_local_name = payment_options[selected_option]['local_name']
-        selected_option_en_name = payment_options[selected_option]['en_name']
-        selected_option_id = payment_options[selected_option]['opt_id']
-        
+        else:
+            selected_option_name, selected_option_id = False, False
+            print("✗ Unexpected delivery option, can't select payment option")
+            # stopped here
+                                                                                                        
         print(f"Selected payment option: {selected_option_local_name}({selected_option_en_name})")
         payment_label = wait.until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, f"label[for='{selected_option_id}']"))
