@@ -386,12 +386,12 @@ def select_delivery_option():
             "consegna standard": {
                 "local_name": "consegna standard",
                 "en_name": "standard",
-                "opt_id": "ID_PAY_SYSTEM_ID_16"
+                "opt_id": "ID_SHIPPING_METHOD_ID_16"
                 },
             "consegna espressa": {
                 "local_name": "consegna espressa",
                 "en_name": "express",
-                "opt_id": "ID_PAY_SYSTEM_ID_27"
+                "opt_id": "ID_SHIPPING_METHOD_ID_27"
                 }
             }
 
@@ -438,7 +438,6 @@ def select_delivery_option():
             print(f"Error in delivery selection process: {str(e)}")
             take_screenshot("delivery_option_error")
             return False, "Error"
-
 
 def select_payment_option(delivery_option):
     global default_payment
@@ -893,6 +892,9 @@ if __name__ == "__main__":
                                             if ship_cost == exp_ship_fee:
                                                 ship_verified = True
                                                 print(f"✓ Shipping fee as expected: {ship_cost}")
+
+                                            else:
+                                                print(f"✗ Shipping fees don't match: expected {exp_ship_fee}, found {ship_cost}")  
                                             
                                                 step_counter.print_step("Placing order")
                                                 order_result = place_order()
@@ -904,11 +906,7 @@ if __name__ == "__main__":
                                                     test_order_num = get_order_number()
 
                                                 else:
-                                                    print("✗ Failed to place order")
-
-                                            else:
-                                                print(f"✗ Shipping fees don't match: expected {exp_ship_fee}, found {ship_cost}")                                                    
-
+                                                    print("✗ Failed to place order")                                                                                 
                                         else:
                                             print("✗ Failed to fill order form") 
                                             
