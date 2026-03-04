@@ -69,6 +69,7 @@ total_skus = len(skus_0) + len(skus_1)
 # Choose random sku, return a string
 def choose_sku():
     # Try both price classes if needed
+    # For IT price classes are only relevant to calculate shipping costs
     price_classes_to_try = [0, 1]
     random.shuffle(price_classes_to_try)  # Try in random order
     
@@ -375,8 +376,68 @@ def proceed_to_checkout():
         take_screenshot("checkout_error")
         return False
 
+def select_delivery_option():
+    global default_delivery
+    try:
+        print("Selecting delivery option...")
+
+        # Define delivery options with their corresponding IDs (equal probability)
+        delivery_options = {
+            "consegna standard": {
+                "local_name": "consegna standard",
+                "en_name": "standard",
+                "opt_id": "ID_PAY_SYSTEM_ID_16"
+                },
+            "consegna espressa": {
+                "local_name": "consegna espressa",
+                "en_name": "express",
+                "opt_id": "ID_PAY_SYSTEM_ID_27"
+                }
+            }
+
+        # Randomly select any delivery option
+        selected_doption = random.choice(list(delivery_options.keys()))
+        selected_doption_local_name = delivery_options[selected_doption]['local_name']
+        selected_doption_en_name = delivery_options[selected_doption]['en_name']
+        selected_doption_id = delivery_options[selected_doption]['opt_id']
+
+        print(f"Selected delivery option: {selected_option_name}")
+
+        # Only interact with the UI if it's not the default option
+        if selected_doption_local_name != default_delivery:
+            
+            # Find and click the payment option using its ID
+            try:
+                # Find and click the label of the payment option
+                delivery_label = wait.until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, f"label[for='{selected_option_id}']"))
+                )
+                print("Found delivery label, attempting to click...")
+
+                # Scroll to the label
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", delivery_label)
+                time.sleep(0.5)
+
+                # Click the label
+                delivery_label.click()
+                time.sleep(1)
+                return True, selected_doption_local_name
+
+            except Exception as e:
+                    print(f"Failed to select delivery option {selected_doption_local_name}: {str(e)}")
+                    return False, selected_doption_local_name
+        else:
+                print("Using default delivery option ({default_delivery}), no action needed")
+                return True, selected_doption_local_name
+
+    except Exception as e:
+            print(f"Error in delivery selection process: {str(e)}")
+            take_screenshot("delivery_option_error")
+            return False, "Error"
+
+
 def select_payment_option(delivery_option):
-    # Only available for items 70+ EU (otherwise TBD, default)
+    global default_payment
     try:
         print("Selecting payment option...")
         
@@ -434,7 +495,8 @@ def select_payment_option(delivery_option):
         )
 
         # Only interact with the UI if it's not the default option
-        if selected_option_en_name != "Bank transfer":
+        # Bank transfer is default for both standard and express
+        if selected_poption_local_name != default_payment:
             # Find and click the payment option using its ID
             try:
                 print("Found payment label, attempting to click...")
@@ -447,7 +509,7 @@ def select_payment_option(delivery_option):
                 return False, selected_option_local_name
 
         else:
-            print("Using default payment option (Bank transfer), no action needed")
+            print(f"Using default payment option ({default_payment}), no action needed")
             return True, selected_option_local_name
 
         time.sleep(1)
@@ -625,26 +687,8 @@ def fill_order_form():
             print(f"✗ Error with comment field: {str(e)}")
             take_screenshot("comment_field_error")
         
-        # Check delivery options
-        print("Checking delivery options...")
-        try:
-            # Look for the specific courier delivery option
-            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery['exp_delivery_id']}']")
-
-            if courier_option:
-                print(f"Found a courier delivery option as expected: {exp_delivery['exp_delivery_local_name']}")
-                my_delivery = exp_delivery['exp_delivery_local_name']
-                # Scroll to the delivery section to take screenshot
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
-                time.sleep(2)
-                take_screenshot("delivery_section")
-                
-            else:
-                print(f"✗ Could not find the {exp_delivery['exp_delivery_local_name']} option")
-
-        except Exception as e:
-            print(f"✗ Could not check delivery options: {str(e)}")
-
+        
+        """
         if price_class == 1:
             # Select payment option, if price is 70+ EU
             option_sel_success, chosen_payment_option = select_payment_option()
@@ -660,16 +704,17 @@ def fill_order_form():
             # Default TBD payment for items under 70 EU
             print("Order value below 70€, using default payment option")
             my_payment = default_payment
+        """
 
         print("✓ Order form filled successfully")
-        return True, my_delivery, my_payment
+        return True
         
     except Exception as e:
         print(f"✗ Error filling order form: {str(e)}")
         # Add traceback to see where it's failing
         traceback.print_exc()
         take_screenshot("order_form_error")
-        return False, my_delivery, my_payment
+        return False
 
 def verify_free_shipping():
     try:
@@ -739,19 +784,14 @@ if __name__ == "__main__":
     try:
         # Initialize step counter
         step_counter = StepCounter()
-        print("Running DE script")
+        print("Running IT script")
         print("---------------LOGS FOR NERDS---------------")
 
         # Initialize expected delivery and payment options
         my_delivery = None
-        exp_delivery = {
-            "exp_delivery_local_name": "kurierzustellung",
-            "exp_delivery_en_name": "Courier delivery",
-            "exp_delivery_id": "ID_SHIPPING_METHOD_ID_21"
-        }
-    
+        default_delivery = "consegna standard"
         my_payment = None
-        default_payment = "TBD"
+        default_payment = "bonifico bancario"
 
         # Initialize all variables for the final summary
         delivery_option_summary = None
@@ -759,7 +799,6 @@ if __name__ == "__main__":
         basket_price = None
         order_price = None
         order_result = None
-        # Add free shipping check later
 
         while True:
             # Only choose the skus that are NOT in unavailable_items
