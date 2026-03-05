@@ -400,11 +400,6 @@ def select_delivery_option():
         selected_doption_local_name = delivery_options[selected_doption]['local_name']
         selected_doption_en_name = delivery_options[selected_doption]['en_name']
         selected_doption_id = delivery_options[selected_doption]['opt_id']
-        print(selected_doption)
-        print(selected_doption_local_name)
-        print(selected_doption_en_name)
-        print(selected_doption_id)
-
         print(f"Selected delivery option: {selected_doption_local_name}")
 
         # Only interact with the UI if it's not the default option
@@ -879,13 +874,21 @@ if __name__ == "__main__":
                                             
                                             step_counter.print_step("Selecting delivery option")
                                             delivery_success, selected_delivery_option = select_delivery_option()
-                                            if not delivery_success:
+                                            if delivery_success:
+                                                print(f"✓ {selected_delivery_option} is selected")
+                                                delivery_option_summary = selected_delivery_option                                                
+                                            else:
                                                 print("✗ Delivery selection failed, but continuing with order process")
+                                                delivery_option_summary = None
 
                                             step_counter.print_step("Selecting payment option")
                                             payment_success, selected_payment_option = select_payment_option(selected_delivery_option)
-                                            if not payment_success:
+                                            if payment_success:
+                                                print(f"✓ {selected_payment_option} is selected")
+                                                payment_option_summary = selected_payment_option
+                                            else:
                                                 print("✗ Payment selection failed, but continuing with order process")
+                                                payment_option_summary = None
 
                                             print("Verifying shipping fees...")                                   
                                             ship_cost = verify_free_shipping()
