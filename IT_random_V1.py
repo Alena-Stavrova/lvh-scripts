@@ -714,14 +714,26 @@ def fill_order_form():
         take_screenshot("order_form_error")
         return False
 
-def verify_free_shipping():
+# DON'T forget to change it in the main!!!!!!!
+def verify_shipping_fee(delivery_option, price_class):
+    global default_delivery
     try:
-        print("Verifying free shipping...")
+        print("Verifying shipping fee...")
         time.sleep(2)
         free_shipping_element = wait.until(
             EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
         )    
-        return free_shipping_element.text
+        ship_fee = free_shipping_element.text
+
+        if delivery_option == default_delivery and price_class == 1:
+
+        elif delivery_option == default_delivery:
+
+        elif delivery_option == "consegna espressa":
+
+        else: #Error
+
+        
             
     except Exception as e:
         print(f"Error verifying free shipping: {str(e)}")
