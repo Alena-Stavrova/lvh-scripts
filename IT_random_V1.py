@@ -685,25 +685,6 @@ def fill_order_form():
             print(f"✗ Error with comment field: {str(e)}")
             take_screenshot("comment_field_error")
         
-        
-        """
-        if price_class == 1:
-            # Select payment option, if price is 70+ EU
-            option_sel_success, chosen_payment_option = select_payment_option()
-
-            # If selection failed, can still place an order with the default option
-            if not option_sel_success:
-                print("✗ Payment selection failed, but continuing with order process")
-            # If selection worked
-            else:
-                my_payment = chosen_payment_option
-
-        else:
-            # Default TBD payment for items under 70 EU
-            print("Order value below 70€, using default payment option")
-            my_payment = default_payment
-        """
-
         print("✓ Order form filled successfully")
         return True
         
@@ -714,32 +695,47 @@ def fill_order_form():
         take_screenshot("order_form_error")
         return False
 
-# DON'T forget to change it in the main!!!!!!!
-def verify_shipping_fee(delivery_option, price_class):
+# Also include payment fee
+def verify_shipping_fee(delivery_option, payment_option, price_class):
     global default_delivery
     try:
-        print("Verifying shipping fee...")
+        print("Verifying shipping fees...")
         time.sleep(2)
         free_shipping_element = wait.until(
             EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
         )    
         ship_fee = free_shipping_element.text
 
-        if delivery_option == default_delivery and price_class == 1:
+        # Express delivery is always TBD
+        if delivery_option == "consegna espressa": 
+            exp_ship_fee = "DA DEFINIRE"
+        # Standard delivery + under 70EU + payment fee
+        elif delivery_option == default_delivery and price_class == 0 and payment_option == "in contanti alla consegna":
+            exp_ship_fee = "€8"
+        # Standard delivery + under 70EU + no payment fee
+        elif delivery_option == default_delivery and price_class == 0:
+            exp_ship_fee = "€5"
+        # Standard delivery + 70+ EU + payment fee
+        elif delivery_option == default_delivery and price_class == 1 and payment_option == "in contanti alla consegna":
+            exp_ship_fee = "€3"
+        # Standard delivery + 70+ EU + no payment fee
+        elif delivery_option == default_delivery and price_class == 1:
+            exp_ship_fee = "Spedizione gratuita"
+        else:
+            exp_ship_fee = False
+            print(f"✗ Can't determine expected shipping fee for: delivery option - {delivery_option}, payment option - {payment_option}, price class - {price_class}")
 
-        elif delivery_option == default_delivery:
-
-        elif delivery_option == "consegna espressa":
-
-        else: #Error
-
-        
-            
+        if ship_fee == exp_ship_fee:
+            print(f"✓ Shipping fee is verified: {ship_fee} as expected")
+            return True, ship_fee
+        else:
+            print(f"✗ WARNING: shipping fees don't match. Expected {exp_ship_fee}, got {ship_fee}")
+            return False, ship_fee
+              
     except Exception as e:
         print(f"Error verifying free shipping: {str(e)}")
         take_screenshot("free_shipping_verification_error")
-        return False
-
+        return False, "Error"
 
 def place_order():
     # Finalize the order by clicking the checkout button on the order form
@@ -809,6 +805,7 @@ if __name__ == "__main__":
         basket_price = None
         order_price = None
         order_result = None
+        ship_fee_summary = None
 
         while True:
             # Only choose the skus that are NOT in unavailable_items
@@ -901,27 +898,20 @@ if __name__ == "__main__":
                                             else:
                                                 print("✗ Payment selection failed, but continuing with order process")
                                                 payment_option_summary = None
+                                  
+                                            verif_success, ship_fee_summary = verify_shipping_fee(selected_delivery_option, selected_payment_option, price_class)                                            
+                                            
+                                            step_counter.print_step("Placing order")
+                                            order_result = place_order()
 
-                                            print("Verifying shipping fees...")                                   
-                                            ship_cost = verify_free_shipping()
-                                            if ship_cost == exp_ship_fee:
-                                                ship_verified = True
-                                                print(f"✓ Shipping fee as expected: {ship_cost}")
+                                            if order_result:
+                                                print("✓ Order successfully placed!")
+                                                time.sleep(3)
+                                                step_counter.print_step("Getting the order number")
+                                                test_order_num = get_order_number()
 
                                             else:
-                                                print(f"✗ Shipping fees don't match: expected {exp_ship_fee}, found {ship_cost}")  
-                                            
-                                                step_counter.print_step("Placing order")
-                                                order_result = place_order()
-
-                                                if order_result:
-                                                    print("✓ Order successfully placed!")
-                                                    time.sleep(3)
-                                                    step_counter.print_step("Getting the order number")
-                                                    test_order_num = get_order_number()
-
-                                                else:
-                                                    print("✗ Failed to place order")                                                                                 
+                                                print("✗ Failed to place order")                                                                                 
                                         else:
                                             print("✗ Failed to fill order form") 
                                             
@@ -965,8 +955,8 @@ if __name__ == "__main__":
             print("Cart and order prices match: N/A (missing price data)")
 
         # Shipping fees match check
-        if ship_verified:
-            print(f"Shipping fee: ✓ As expected, '{ship_cost}'")
+        if verif_success:
+            print(f"Shipping fees: ✓ As expected, '{ship_fee_summary}'")
         else:
             print("✗Shipping fees don't match")
         
