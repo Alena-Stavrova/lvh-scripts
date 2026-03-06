@@ -447,12 +447,12 @@ def select_payment_option(delivery_option):
                 "opt_id": "ID_PAY_SYSTEM_ID_24"
                 },
             "in contanti alla consegna": {
-                "local_name": "cash on delivery",
-                "en_name": "Credit/debit card",
+                "local_name": "in contanti alla consegna",
+                "en_name": "Cash on delivery",
                 "opt_id": "ID_PAY_SYSTEM_ID_22"
                 },
             "carta di credito/debito": {
-                "local_name": "credit/debit card",
+                "local_name": "carta di credito/debito",
                 "en_name": "Credit/debit card",
                 "opt_id": "ID_PAY_SYSTEM_ID_53"
                 },
@@ -487,7 +487,7 @@ def select_payment_option(delivery_option):
             print("✗ Unexpected delivery option, can't select payment option")
             # stopped here
                                                                                                         
-        print(f"Selected payment option: {selected_poption_local_name}({selected_poption_en_name})")
+        print(f"Selected payment option: {selected_poption_local_name} ({selected_poption_en_name})")
         payment_label = wait.until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, f"label[for='{selected_poption_id}']"))
         )
@@ -503,7 +503,7 @@ def select_payment_option(delivery_option):
                 return True, selected_poption_local_name
 
             except Exception as e:
-                print(f"Failed to select payment option {selected_option_local_name}: {str(e)}")
+                print(f"Failed to select payment option {selected_poption_local_name}: {str(e)}")
                 return False, selected_poption_local_name
 
         else:
@@ -899,6 +899,7 @@ if __name__ == "__main__":
                                                 print("✗ Payment selection failed, but continuing with order process")
                                                 payment_option_summary = None
                                   
+                                            time.sleep(2)
                                             verif_success, ship_fee_summary = verify_shipping_fee(selected_delivery_option, selected_payment_option, price_class)                                            
                                             
                                             step_counter.print_step("Placing order")
