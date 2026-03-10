@@ -12,6 +12,12 @@ import os
 import traceback
 import sys
 
+# Initialize driver with None (to be changed later)
+driver = None
+wait = None
+website_main = "https://it.levenhuk.com/"
+test_phone = "+79444444444"
+
 # A few helper functions
 # Create the optimized driver (loads fast, limits images)
 def create_optimized_driver():
@@ -26,14 +32,15 @@ def create_optimized_driver():
     options.add_argument('--disable-background-networking')
     options.add_argument('--disable-extensions')
     
-    driver = webdriver.Chrome(options=options)
+    local_driver = webdriver.Chrome(options=options)
     
     # Longer timeout for initial load
-    driver.set_page_load_timeout(60)
+    local_driver.set_page_load_timeout(60)
     
-    return driver
+    return local_driver
 
 def take_screenshot(name):
+    global driver
     # Create screenshot folder, name screenshot images
     if not os.path.exists("screenshots"):
         os.makedirs("screenshots")
@@ -52,24 +59,17 @@ class StepCounter:
         print(f"\n--- Step {self.step}: {message} ---")
         self.step += 1
 
-# Initialize driver and wait
-user_email = input("Enter email: ")
-driver = create_optimized_driver()
-driver.maximize_window()
-wait = WebDriverWait(driver, 20)
-website_main = "https://it.levenhuk.com/"
-test_phone = "+79444444444"
-
 # List of SKUS and price classes
-skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
-skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
+sku_lists = {
+    0: [83836, 83820, 84547, 84545, 83089],  # Under 70 EU
+    1: [84558, 84638, 84087, 83842, 85574]   # 70+ EU
+}
 items_unavailable = []
-total_skus = len(skus_0) + len(skus_1)
+# total_skus = len(skus_0) + len(skus_1) - CHECK IF STILL NEEDED
 
-# Choose random sku, return a string
+# Same as in random script (price matters for delivery costs only)
 def choose_sku():
     # Try both price classes if needed
-    # For IT price classes are only relevant to calculate shipping costs
     price_classes_to_try = [0, 1]
     random.shuffle(price_classes_to_try)  # Try in random order
     
@@ -85,6 +85,42 @@ def choose_sku():
     # If we get here, both classes have no available SKUs
     print("✗ WARNING: No available SKUs in either price class!")
     return None, None
+
+# Key in the bigger dictionary = user input numbers
+delivery_options = {
+    1: {
+        'local_name': 'consegna standard',
+        'en_name': 'standard',
+        'opt_id': 'ID_SHIPPING_METHOD_ID_16'},
+
+    2: {
+        'local_name': 'consegna espressa',
+        'en_name': 'express',
+        'id': 'ID_SHIPPING_METHOD_ID_27'}
+    }
+
+# Key in the bigger dictionary = user input numbers
+payment_options = {
+    1: {
+        'local_name': 'bonifico bancario',
+        'en_name': 'Bank transfer',
+        'opt_id': 'ID_PAY_SYSTEM_ID_24'},
+    
+    2: {
+        'local_name': 'in contanti alla consegna',
+        'en_name': 'Cash on delivery',
+        'opt_id': 'ID_PAY_SYSTEM_ID_22'},
+    
+    3: {
+        'local_name': 'carta di credito/debito',
+        'en_name': 'Credit/debit card',
+        'opt_id': 'ID_PAY_SYSTEM_ID_53'},
+    
+    4: {
+        'local_name': 'PayPal',
+        'en_name': 'PayPal',
+        'opt_id': 'ID_PAY_SYSTEM_ID_23'}
+    }
 
 def choose_address():
     # Define a list of shipping addresses
@@ -376,148 +412,39 @@ def proceed_to_checkout():
         take_screenshot("checkout_error")
         return False
 
-def select_delivery_option():
-    global default_delivery
+def click_delivery_option(doption_id):
+    # Click button if not default option
     try:
-        print("Selecting delivery option...")
-
-        # Define delivery options with their corresponding IDs (equal probability)
-        delivery_options = {
-            "consegna standard": {
-                "local_name": "consegna standard",
-                "en_name": "standard",
-                "opt_id": "ID_SHIPPING_METHOD_ID_16"
-                },
-            "consegna espressa": {
-                "local_name": "consegna espressa",
-                "en_name": "express",
-                "opt_id": "ID_SHIPPING_METHOD_ID_27"
-                }
-            }
-
-        # Randomly select any delivery option
-        selected_doption = random.choice(list(delivery_options.keys()))
-        selected_doption_local_name = delivery_options[selected_doption]['local_name']
-        selected_doption_en_name = delivery_options[selected_doption]['en_name']
-        selected_doption_id = delivery_options[selected_doption]['opt_id']
-        print(f"Selected delivery option: {selected_doption_local_name}")
-
-        # Only interact with the UI if it's not the default option
-        if selected_doption_local_name != default_delivery:
-            
-            # Find and click the payment option using its ID
-            try:
-                # Find and click the label of the payment option
-                delivery_label = wait.until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, f"label[for='{selected_doption_id}']"))
-                )
-                print("Found delivery label, attempting to click...")
-
-                # Scroll to the label
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", delivery_label)
-                time.sleep(0.5)
-
-                # Click the label
-                delivery_label.click()
-                time.sleep(1)
-                return True, selected_doption_local_name
-
-            except Exception as e:
-                    print(f"Failed to select delivery option {selected_doption_local_name}: {str(e)}")
-                    return False, selected_doption_local_name
-        else:
-                print(f"Using default delivery option ({default_delivery}), no action needed")
-                return True, selected_doption_local_name
-
-    except Exception as e:
-            print(f"Error in delivery selection process: {str(e)}")
-            take_screenshot("delivery_option_error")
-            return False, "Error"
-
-def select_payment_option(delivery_option):
-    global default_payment
-    try:
-        print("Selecting payment option...")
-        
-        # Define payment options with their corresponding IDs 
-        payment_options = {
-            "bonifico bancario": {
-                "local_name": "bonifico bancario",
-                "en_name": "Bank transfer",
-                "opt_id": "ID_PAY_SYSTEM_ID_24"
-                },
-            "in contanti alla consegna": {
-                "local_name": "in contanti alla consegna",
-                "en_name": "Cash on delivery",
-                "opt_id": "ID_PAY_SYSTEM_ID_22"
-                },
-            "carta di credito/debito": {
-                "local_name": "carta di credito/debito",
-                "en_name": "Credit/debit card",
-                "opt_id": "ID_PAY_SYSTEM_ID_53"
-                },
-            "PayPal": {
-                "local_name": "PayPal",
-                "en_name": "PayPal",
-                "opt_id": "ID_PAY_SYSTEM_ID_23"
-                }
-        }
-
-        # All options available for standard delivery
-        if delivery_option == "consegna standard":
-            # Select random payment option from keys
-            selected_poption = random.choice(list(payment_options.keys()))
-            selected_poption_local_name = payment_options[selected_poption]['local_name']
-            selected_poption_en_name = payment_options[selected_poption]['en_name']
-            selected_poption_id = payment_options[selected_poption]['opt_id']
-            
-        # Only 2 options available for express delivery
-        elif delivery_option == "consegna espressa":
-            # Choose randomly opt_id
-            selected_poption_id = "ID_PAY_SYSTEM_ID_" + (str(random.randint(23, 24)))            
-            # Then get the key from it
-            for key, val in payment_options.items():
-                if val['opt_id'] == selected_poption_id:
-                    selected_poption_local_name = val['local_name']
-                    selected_poption_en_name = val['en_name']
-                    break
-
-        else:
-            selected_poption_local_name, selected_poption_en_name, selected_poption_id = False, False, False
-            print("✗ Unexpected delivery option, can't select payment option")
-            # stopped here
-                                                                                                        
-        print(f"Selected payment option: {selected_poption_local_name} ({selected_poption_en_name})")
-        payment_label = wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, f"label[for='{selected_poption_id}']"))
+        delivery_label = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, f"label[for='{doption_id}']"))
         )
-
-        # Only interact with the UI if it's not the default option
-        # Bank transfer is default for both standard and express
-        if selected_poption_local_name != default_payment:
-            # Find and click the payment option using its ID
-            try:
-                print("Found payment label, attempting to click...")
-                payment_label.click()
-                time.sleep(1)
-                return True, selected_poption_local_name
-
-            except Exception as e:
-                print(f"Failed to select payment option {selected_poption_local_name}: {str(e)}")
-                return False, selected_poption_local_name
-
-        else:
-            print(f"Using default payment option ({default_payment}), no action needed")
-            return True, selected_poption_local_name
-
+        delivery_label.click()
         time.sleep(1)
+        return True
         
     except Exception as e:
-        print(f"Error in payment selection process: {str(e)}")
+        print(f"Can't find or click the delivery option: {str(e)}")
+        take_screenshot("delivery_option_error")
+        return False
+
+def click_payment_option(poption_id):
+    # Click button if not default option
+    try:
+        payment_label = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, f"label[for='{poption_id}']"))
+        )
+        payment_label.click()
+        time.sleep(1)
+        return True
+        
+    except Exception as e:
+        print(f"Can't find or click the payment option: {str(e)}")
         take_screenshot("payment_option_error")
-        return False, "Error"
+        return False
+
 
 def fill_order_form():
+    global delivery_option_summary, payment_option_summary # We'll modify the global variable
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
@@ -683,8 +610,17 @@ def fill_order_form():
         
         except Exception as e:
             print(f"✗ Error with comment field: {str(e)}")
-            take_screenshot("comment_field_error")
+            take_screenshot("comment_field_error") 
         
+
+ # CONTINUE FROM HERE
+
+
+
+
+
+
+
         print("✓ Order form filled successfully")
         return True
         

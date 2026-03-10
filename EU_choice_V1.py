@@ -571,8 +571,7 @@ def fill_order_form():
         # Check delivery options
         print("Checking delivery options...")
         try:
-            # Look for the specific courier delivery option
-            #courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery_id}']")
+            # Look for the specific courier delivery option            
             courier_option = driver.find_element(By.CSS_SELECTOR, default_dselector) 
 
             if courier_option:
