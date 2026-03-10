@@ -612,14 +612,42 @@ def fill_order_form():
             print(f"✗ Error with comment field: {str(e)}")
             take_screenshot("comment_field_error") 
         
+        # Click deivery button unless default
+        if dopt_local_name != 'consegna standard':
+            option_click_success = click_delivery_option(dopt_id)
+            time.sleep(2)
 
- # CONTINUE FROM HERE
+            if not option_click_success:
+                print("✗ Delivery selection failed")
+                # Won't run default option because something is wrong
+                print("WARNING: Delivery option {delivery_option} didn't work as expected - please check manually. Quitting the program.")
+                driver.quit()
+                sys.exit()
+            else:
+                delivery_option_summary = dopt_local_name
 
+        else:
+            # Default delivery option
+            print("Using default dekivery option")
+            delivery_option_summary = default_dpbutton
 
+        # Click payment button unless default
+        # Bank transfer is default in both cases
+        if popt_local_name != 'bonifico bancario':
+            option_click_success = click_payment_option(popt_id)
+            time.sleep(2)
 
-
-
-
+            if not option_click_success:
+                print("✗ Payment selection failed")
+                print("WARNING: payment option {payment_option} didn't work as expected - please check manually. Quitting the program.")
+                driver.quit()
+                sys.exit()
+            else:
+                payment_option_summary = popt_name
+                
+        else: # Default option, no need to click
+            print("Using default payment option")
+            payment_option_summary = default_pbutton
 
         print("✓ Order form filled successfully")
         return True
@@ -723,11 +751,63 @@ def get_order_number():
     
 # Main execution
 if __name__ == "__main__":
-    try:
-        # Initialize step counter
-        step_counter = StepCounter()
-        print("Running IT script")
-        print("---------------LOGS FOR NERDS---------------")
+    # Initialize step counter
+    step_counter = StepCounter()
+    print("Running IT script")
+    print("---------------LOGS FOR NERDS---------------")
+
+    # Get al the user input first (no browser yet)
+    user_email = input("Enter email: ")
+
+    # Get delivery option from user      
+    while True:
+        try:
+            print("\nDelivery options:")
+            print("1 = consegna standard(standard delivery)")
+            print("2 = consegna espressa")
+            
+            selected_delivery = int(input("Enter your option (1-2): "))
+            if selected_delivery in [1, 2]:
+                break
+            else:
+                print("✗ Please enter a number between 1 and 2.")
+
+        except ValueError:
+            print("✗ Please enter a valid number.")
+                
+    # Get payment option from user      
+    while True:
+        try:
+            print("\nPayment options:")
+            print("1 = bonifico bancario (bank transfer)")
+            print("2 = in contanti alla consegna (cash on delivery)")
+            print("3 = carta di credito/debito (credit/debit card)")
+            print("4 = PayPal")
+            print("Only options 1 and 4 work with express delivery")
+            
+            selected_payment = int(input("Enter your option (1-4): "))
+            if (selected_delivery == 1 and selected_payment in [1, 2, 3, 4]) or (selected_delivery == 2 and selected_payment in [1, 4]):
+                break
+            elif selected_delivery == 2 and selected_payment in [2, 3]:
+                print("✗ Not valid options for express delivery, choose 1 or 4")
+            else:
+                print("✗ Please enter a number between 1 and 4.")
+
+        except ValueError:
+            print("✗ Please enter a valid number.")
+
+    # Get deivery option details
+    dopt_en_name = delivery_options[selected_delivery]['en_name']
+    dopt_local_name = delivery_options[selected_delivery]['local_name']
+    dopt_id = delivery_options[selected_delivery]['opt_id']
+    
+    # Get payment option details
+    popt_en_name = payment_options[selected_payment]['en_name']
+    popt_local_name = payment_options[selected_payment]['local_name']
+    popt_id = payment_options[selected_payment]['opt_id']
+    # print(f"\nSelected: {popt_lname} (Price class: {'70+€' if price_class == 1 else 'under 70€'})")
+
+    # CONTINUE FROM HERE
 
         # Initialize expected delivery and payment options
         my_delivery = None
@@ -776,6 +856,15 @@ if __name__ == "__main__":
         else:
             exp_ship_fee = "da definire"
         ship_verified = False
+
+        """
+        # Determine price class based on payment
+        price_class = 1 if selected_payment in [1, 2, 3] else 0
+        if price_class == 1:
+            exp_ship_fee = "Free shipping"
+        else:
+            exp_ship_fee = "TBD"
+        ship_verified = False"""#check if it works
 
         step_counter.print_step("Getting offer ID")
         offer_id = get_offer_id(my_sku)
