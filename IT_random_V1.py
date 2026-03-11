@@ -66,10 +66,10 @@ skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
 items_unavailable = []
 total_skus = len(skus_0) + len(skus_1)
 
-# Choose random sku, return a string
+# Choose random sku, return a string and int price class
 def choose_sku():
     # Try both price classes if needed
-    # For IT price classes are only relevant to calculate shipping costs
+    # For IT price classes are only relevant for shipping costs
     price_classes_to_try = [0, 1]
     random.shuffle(price_classes_to_try)  # Try in random order
     
@@ -149,7 +149,7 @@ def close_cookie_popup():
         return True    
      
     except Exception as e:
-        print(f"Error handling cookie popup: {str(e)}")
+        print(f"✗ Error handling cookie popup: {str(e)}")
         return False
 
 def search_for_sku(sku):
@@ -172,9 +172,9 @@ def search_for_sku(sku):
         search_input.send_keys(str(sku))
        
         print("Submitting search...")
-        search_input.send_keys(Keys.ENTER)       
+        search_input.send_keys(Keys.ENTER)
+        
         print("Waiting for results to load...")
-
         try:
             WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CLASS_NAME, ".b-48.pb-md-24"))
