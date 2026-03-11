@@ -96,7 +96,7 @@ delivery_options = {
     2: {
         'local_name': 'consegna espressa',
         'en_name': 'express',
-        'id': 'ID_SHIPPING_METHOD_ID_27'}
+        'opt_id': 'ID_SHIPPING_METHOD_ID_27'}
     }
 
 # Key in the bigger dictionary = user input numbers
@@ -631,6 +631,7 @@ def fill_order_form():
             print("Using default delivery option")
             delivery_option_summary = default_dbutton
 
+        # IDEA - add scroll into view JS script for payment
         # Click payment button unless default
         # Bank transfer is default in both cases
         if popt_local_name != 'bonifico bancario':
@@ -780,12 +781,12 @@ if __name__ == "__main__":
         try:
             print("\nPayment options:")
             print("1 = bonifico bancario (bank transfer)")
-            print("2 = in contanti alla consegna (cash on delivery)")
-            print("3 = carta di credito/debito (credit/debit card)")
+            if selected_delivery == 1:
+                print("2 = in contanti alla consegna (cash on delivery)")
+                print("3 = carta di credito/debito (credit/debit card)")
             print("4 = PayPal")
-            print("Only options 1 and 4 work with express delivery")
             
-            selected_payment = int(input("Enter your option (1-4): "))
+            selected_payment = int(input("Enter your option: "))
             if (selected_delivery == 1 and selected_payment in [1, 2, 3, 4]) or (selected_delivery == 2 and selected_payment in [1, 4]):
                 break
             elif selected_delivery == 2 and selected_payment in [2, 3]:
