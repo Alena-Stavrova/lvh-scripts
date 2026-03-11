@@ -10,6 +10,7 @@ import re
 import random
 import os
 import traceback
+import sys
 
 # Initialize driver with None (to be changed later)
 driver = None
