@@ -240,7 +240,8 @@ def get_offer_id(sku):
             print(f"✓ Found offer ID: {offer_id}")
             return int(offer_id)
         else:
-            print("✗ No data-id attribute found on container")
+            print("✗ Failed to get offer ID: {str(e)}")
+            take_screenshot("offer_id_error")
             return None
             
     except Exception as e:
@@ -309,7 +310,7 @@ def navigate_to_cart_directly():
             print("✓ Successfully navigated to cart page")
             return True
         else:
-            print(f"Not on cart page. Current URL: {driver.current_url}")
+            print(f"✗ Not on cart page. Current URL: {driver.current_url}")
             return False
         
     except Exception as e:
@@ -350,7 +351,7 @@ def proceed_to_checkout():
             print(f"Found checkout button")
                                 
         if not checkout_button:
-            raise Exception("Could not find checkout button")
+            raise Exception("✗ Could not find checkout button")
         
         print("Clicking checkout button...")
         checkout_button.click()
@@ -503,7 +504,7 @@ def select_payment_option(delivery_option):
                 return True, selected_poption_local_name
 
             except Exception as e:
-                print(f"Failed to select payment option {selected_poption_local_name}: {str(e)}")
+                print(f"✗ Failed to select payment option {selected_poption_local_name}: {str(e)}")
                 return False, selected_poption_local_name
 
         else:
@@ -513,7 +514,7 @@ def select_payment_option(delivery_option):
         time.sleep(1)
         
     except Exception as e:
-        print(f"Error in payment selection process: {str(e)}")
+        print(f"✗ Error in payment selection process: {str(e)}")
         take_screenshot("payment_option_error")
         return False, "Error"
 
@@ -521,7 +522,7 @@ def fill_order_form():
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
-        print(f"Chosen address in: {str(ship_to['country'])}, {str(ship_to['city'])}")
+        print(f"Chosen address in: {str(country_name)}, {str(ship_to['city'])}")
         
         # Wait for the form to be present
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(
@@ -581,7 +582,7 @@ def fill_order_form():
         try:
             print(f"Selecting country: {country_name}")
 
-            # Find the actual select element (it's visible and interactable!)
+            # Find the actual select element (visible, interactable)
             country_select = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "COUNTRY_SHIPPING"))
             )
@@ -733,7 +734,7 @@ def verify_shipping_fee(delivery_option, payment_option, price_class):
             return False, ship_fee
               
     except Exception as e:
-        print(f"Error verifying free shipping: {str(e)}")
+        print(f"✗ Error verifying free shipping: {str(e)}")
         take_screenshot("free_shipping_verification_error")
         return False, "Error"
 
@@ -790,7 +791,7 @@ if __name__ == "__main__":
     try:
         # Initialize step counter
         step_counter = StepCounter()
-        print("Running IT script")
+        print("IT LEVENHUK")
         print("---------------LOGS FOR NERDS---------------")
 
         # Initialize expected delivery and payment options
@@ -833,13 +834,6 @@ if __name__ == "__main__":
                 print("Closing the browser")
                 driver.quit()
                 sys.exit()
-
-        # SIMPLIFIED temporarily, add real logic later
-        if price_class == 1:
-            exp_ship_fee = "spedizione gratuita"
-        else:
-            exp_ship_fee = "da definire"
-        ship_verified = False
 
         step_counter.print_step("Getting offer ID")
         offer_id = get_offer_id(my_sku)
