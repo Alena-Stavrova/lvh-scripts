@@ -67,7 +67,7 @@ sku_lists = {
 items_unavailable = []
 total_skus = len(sku_lists[0]) + len(sku_lists[1])
 
-# Same as in random script (price matters for delivery costs only)
+# Same as in random script (price class matters for delivery costs only)
 def choose_sku():
     # Try both price classes if needed
     price_classes_to_try = [0, 1]
@@ -209,8 +209,8 @@ def search_for_sku(sku):
        
         print("Submitting search...")
         search_input.send_keys(Keys.ENTER)       
-        print("Waiting for results to load...")
 
+        print("Waiting for results to load...")
         try:
             WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CLASS_NAME, ".b-48.pb-md-24"))
@@ -327,11 +327,11 @@ def add_to_cart_via_api(offer_id, quantity=1):
             return False
             
     except Exception as e:
-        print(f"✗ Error in API call: {e}")
+        print(f"Failed to add to cart via API: {str(e)}")
+        take_screenshot("api_add_error")
         return False
 
 def navigate_to_cart_directly():
-    # Navigate to the cart page directly by URL
     try:
         cart_url = website_main + "basket/"
         print(f"Navigating to cart URL: {cart_url}")
@@ -345,7 +345,7 @@ def navigate_to_cart_directly():
             print("✓ Successfully navigated to cart page")
             return True
         else:
-            print(f"Not on cart page. Current URL: {driver.current_url}")
+            print(f"✗ Not on cart page. Current URL: {driver.current_url}")
             return False
         
     except Exception as e:
@@ -444,11 +444,12 @@ def click_payment_option(poption_id):
 
 
 def fill_order_form():
-    global delivery_option_summary, payment_option_summary # We'll modify the global variable
+    global delivery_option_summary, payment_option_summary, default_dbutton, default_pbutton # We'll modify the global variable
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
-        print(f"Chosen address in: {str(ship_to['country'])}, {str(ship_to['city'])}")
+        city_name = ship_to['city']
+        print(f"Chosen address in: {str(country_name)}, {str(city_name)}")
         
         # Wait for the form to be present
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(
@@ -545,7 +546,7 @@ def fill_order_form():
             
             # Clear and fill the field
             city_field.clear()
-            city_field.send_keys(ship_to['city'])
+            city_field.send_keys(city_name)
             print("City field filled")
             
             # Press Tab to move to next field (this might help with form validation)
@@ -613,7 +614,7 @@ def fill_order_form():
             take_screenshot("comment_field_error") 
         
         # Click deivery button unless default
-        if dopt_local_name != 'consegna standard':
+        if dopt_local_name != default_dbutton:
             option_click_success = click_delivery_option(dopt_id)
             time.sleep(2)
 
@@ -632,9 +633,8 @@ def fill_order_form():
             delivery_option_summary = default_dbutton
 
         # IDEA - add scroll into view JS script for payment
-        # Click payment button unless default
-        # Bank transfer is default in both cases
-        if popt_local_name != 'bonifico bancario':
+        # Click payment button unless default (=bank transfer)
+        if popt_local_name != default_pbutton:
             option_click_success = click_payment_option(popt_id)
             time.sleep(2)
 
@@ -754,7 +754,7 @@ def get_order_number():
 if __name__ == "__main__":
     # Initialize step counter
     step_counter = StepCounter()
-    print("Running IT script")
+    print("IT LEVENHUK")
     print("---------------LOGS FOR NERDS---------------")
 
     # Get al the user input first (no browser yet)
@@ -897,7 +897,8 @@ if __name__ == "__main__":
                                         print(f"Total price: {order_price}")
 
                                         fill_form_success = fill_order_form()
-                                        if fill_form_success:                                  
+                                        if fill_form_success:
+                                            
                                             time.sleep(2)
                                             verif_success, ship_fee_summary = verify_shipping_fee(dopt_local_name, popt_local_name, price_class)                                            
                                             
