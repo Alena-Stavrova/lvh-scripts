@@ -18,3 +18,7 @@ For each country*, there will be 2 scripts:
 
 *Except US because they only have 1 flow available
 
+UPD March 18 '26: Added a runner script so that several scripts can be run automatically one after another (just like ERM). The versions posted here are:
+
+* V1 = current working version that doesn't work with the runner yet
+* V2 = a version compatible with the runner
