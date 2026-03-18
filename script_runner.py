@@ -2,12 +2,12 @@
 #import CZ_random_V2 as cz
 import DE_random_V2 as de
 #import ES_random_V2 as es
-#import EU_random_V2 as eu
+import EU_random_V2 as eu
 #import HU_random_V2 as hu
 #import IT_random_V2 as it
 #import PL_random_V2 as pl
 #import TR_random_V2 as tr
-#import US_random_V2 as us
+import US_random_V2 as us
 
 import random
 
@@ -16,12 +16,12 @@ script_modules = {
     #'CZ': cz,
     'DE': de,
     #'ES': es,
-    #'EU': eu,
+    'EU': eu,
     #'HU': hu,
     #'IT': it,
     #'PL': pl,
     #'TR': tr,
-    #'US': us
+    'US': us
     }
 
 scripts_string = input('Type countries space-separated, like "ES EU PL" or "8" to run ALL the scripts: ')

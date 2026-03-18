@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
+# Only need Select for Levenhuk (/order >> selecting country)
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 import time
@@ -15,7 +16,7 @@ import sys
 # Initialize driver with None (to be changed later)
 driver = None
 wait = None
-website_main = "https://de.levenhuk.com/"
+website_main = "https://eu.levenhuk.com/"
 
 # Create the optimized driver (loads fast, limits images)
 def create_optimized_driver():
@@ -77,36 +78,36 @@ def choose_sku(skus_0, skus_1, items_unavailable):
 
 def choose_address():
     # Define a list of shipping addresses
+    # No free delivery to Greece
     shipping_addresses = [
-        {
-            'country': 'Deutschland',
-            'city': 'Gmund am Tegernsee',
-            'address': 'Riedersteinweg 3',
-            'postal_code': '83703'
-        },
-        {
-            'country': 'Deutschland',
-            'city': 'Bielefeld',
-            'address': 'Ziegelstrasse 7',
-            'postal_code': '33607'
-        },
-        {
-            'country': 'Deutschland',
-            'city': 'Kiel',
-            'address': 'August-Sievers-Ring 26',
-            'postal_code': '24148'
-        }
-    ]
+    {
+        'country': 'Finland',
+        'city': 'Oulu',
+        'address': 'Aleksanterinkatu 46',
+        'postal_code': '90120'
+    },
+    {
+        'country': 'Ireland',
+        'city': 'Galway', 
+        'address': '105 Forster Ct',
+        'postal_code': 'H91 D95P'
+    },
+    {
+        'country': 'Slovenia',
+        'city': 'Maribor',
+        'address': 'Komenskega ulica 2',
+        'postal_code': '2000'
+    }
+]
     address = shipping_addresses[random.randint(0,2)] 
     return(address) #returns a dictionary
 
 def extract_price(price_text):
-    # IMPORTANT - price is for some reason with (.) on DE, trying to find out if it's ok
     # Extract numeric price from text
     # Remove all characters except digits and the comma (EU format)
-    clean_text = re.sub(r'[^\d.]', '', price_text)
+    clean_text = re.sub(r'[^\d,]', '', price_text)
     # Replace comma with dot
-    # clean_text = clean_text.replace(',', '.')    
+    clean_text = clean_text.replace(',', '.')    
     try:
         return float(clean_text)
     except ValueError:
@@ -128,7 +129,6 @@ def get_total_price():
         return None
 
 def close_cookie_popup():
-    # Close the cookie consent popup 
     try:
         accept_button = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, ".cky-btn.cky-btn-accept"))
@@ -139,7 +139,7 @@ def close_cookie_popup():
         return True    
      
     except Exception as e:
-        print(f"Error handling cookie popup: {str(e)}")
+        print(f"✗ Error handling cookie popup: {str(e)}")
         return False
 
 def search_for_sku(sku):
@@ -199,7 +199,7 @@ def is_item_available(sku):
     try:
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
-        unavailable_indicators = ["nicht auf lager", "nicht mehr erhältlich", "demnächst verfügbar"]
+        unavailable_indicators = ["out of stock", "discontinued", "coming soon"]
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:
@@ -284,7 +284,6 @@ def add_to_cart_via_api(offer_id, quantity=1):
         return False
 
 def navigate_to_cart_directly():
-    # Navigate to the cart page directly by URL
     try:
         cart_url = website_main + "basket/"
         print(f"Navigating to cart URL: {cart_url}")
@@ -372,50 +371,36 @@ def select_payment_option():
         
         # Define payment options with their corresponding IDs (equal probability)
         payment_options = {
-            "überweisung": {
-                "local_name": "überweisung",
-                "en_name": "Bank transfer",
-                "opt_id": "ID_PAY_SYSTEM_ID_39"
-                },
-            "kredit-/ec-karte": {
-                "local_name": "kredit-/ec-karte",
-                "en_name": "Credit/debit card",
-                "opt_id": "ID_PAY_SYSTEM_ID_51"
-                },
-            "PayPal": {
-                "local_name": "PayPal",
-                "en_name": "PayPal",
-                "opt_id": "ID_PAY_SYSTEM_ID_40"
-                }
+            "Bank transfer": "ID_PAY_SYSTEM_ID_2",
+            "Credit/Debit card": "ID_PAY_SYSTEM_ID_50", 
+            "PayPal": "ID_PAY_SYSTEM_ID_5"
         }
 
         # Randomly select any payment option
-        selected_option = random.choice(list(payment_options.keys()))
-        selected_option_local_name = payment_options[selected_option]['local_name']
-        selected_option_en_name = payment_options[selected_option]['en_name']
-        selected_option_id = payment_options[selected_option]['opt_id']
+        selected_option_name = random.choice(list(payment_options.keys()))
+        selected_option_id = payment_options[selected_option_name]
         
-        print(f"Selected payment option: {selected_option_local_name}({selected_option_en_name})")
+        print(f"Selected payment option: {selected_option_name}")
         payment_label = wait.until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, f"label[for='{selected_option_id}']"))
         )
 
         # Only interact with the UI if it's not the default option
-        if selected_option_en_name != "Bank transfer":
+        if selected_option_name != "Bank transfer":
             # Find and click the payment option using its ID
             try:
-                print("Found payment label, attempting to click...")
                 payment_label.click()
+                print("Found payment label, attempting to click...")
                 time.sleep(1)
-                return True, selected_option_local_name
+                return True, selected_option_name
 
             except Exception as e:
-                print(f"Failed to select payment option {selected_option_local_name}: {str(e)}")
-                return False, selected_option_local_name
+                print(f"Failed to select payment option {selected_option_name}: {str(e)}")
+                return False, selected_option_name
 
         else:
             print("Using default payment option (Bank transfer), no action needed")
-            return True, selected_option_local_name
+            return True, selected_option_name
 
         time.sleep(1)
         
@@ -424,12 +409,12 @@ def select_payment_option():
         take_screenshot("payment_option_error")
         return False, "Error"
 
-# Too many arguments - either remove choosing delivery/payment options or pass a dict instead
-def fill_order_form(user_email, test_phone, exp_delivery, price_class):
+def fill_order_form(user_email, test_phone, exp_elivery, price_class):
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
-        print(f"Chosen address in: {str(ship_to['country'])}, {str(ship_to['city'])}")
+        city_name = ship_to['city']
+        print(f"Chosen address in: {str(country_name)}, {str(city_name)}")
         
         # Wait for the form to be present
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(
@@ -526,7 +511,7 @@ def fill_order_form(user_email, test_phone, exp_delivery, price_class):
             
             # Clear and fill the field
             city_field.clear()
-            city_field.send_keys(ship_to['city'])
+            city_field.send_keys(city_name)
             print("City field filled")
             
             # Press Tab to move to next field (this might help with form validation)
@@ -597,18 +582,18 @@ def fill_order_form(user_email, test_phone, exp_delivery, price_class):
         print("Checking delivery options...")
         try:
             # Look for the specific courier delivery option
-            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery['exp_delivery_id']}']")
+            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery_id}']")            
 
             if courier_option:
-                print(f"Found a courier delivery option as expected: {exp_delivery['exp_delivery_local_name']}")
-                my_delivery = exp_delivery['exp_delivery_local_name']
+                print(f"Found a courier delivery option as expected ({exp_delivery})")
+                my_delivery = exp_delivery
                 # Scroll to the delivery section to take screenshot
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
                 time.sleep(2)
                 take_screenshot("delivery_section")
                 
             else:
-                print(f"✗ Could not find the {exp_delivery['exp_delivery_local_name']} option")
+                print(f"✗ Could not find the {exp_delivery} option")
 
         except Exception as e:
             print(f"✗ Could not check delivery options: {str(e)}")
@@ -703,7 +688,7 @@ def get_order_number():
         return False
     
 # Main execution
-def main_de(email, phone):
+def main_eu(email, phone):
     global driver, wait
     
     try:
@@ -723,15 +708,12 @@ def main_de(email, phone):
         skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
         items_unavailable = []
         total_skus = len(skus_0) + len(skus_1)
-
+        
         # Initialize expected delivery and payment options
+        # TURN INTO A DICT LIKE ON DE
         my_delivery = None
-        exp_delivery = {
-            "exp_delivery_local_name": "kurierzustellung",
-            "exp_delivery_en_name": "Courier delivery",
-            "exp_delivery_id": "ID_SHIPPING_METHOD_ID_21"
-        }
-    
+        exp_delivery = "Courier delivery"
+        exp_delivery_id = "ID_SHIPPING_METHOD_ID_4"
         my_payment = None
         default_payment = "TBD"
 
@@ -771,9 +753,9 @@ def main_de(email, phone):
                 sys.exit()
 
         if price_class == 1:
-            exp_ship_fee = "Kostenloser Versand"
+            exp_ship_fee = "Free shipping"
         else:
-            exp_ship_fee = "noch festzulegen"
+            exp_ship_fee = "TBD"
         ship_verified = False
 
         step_counter.print_step("Getting offer ID")
@@ -879,7 +861,7 @@ def main_de(email, phone):
 
         # Shipping fees match check
         if ship_verified:
-            print(f"Shipping fee: ✓ As expected, '{ship_cost}'")
+            print(f"Shipping fee: ✓ As expected, {ship_cost}")
         else:
             print("✗Shipping fees don't match")
         
@@ -894,5 +876,5 @@ def main_de(email, phone):
         driver.quit()
 
 if __name__ == "__main__":
-    main_de()
+    main_eu()
 
