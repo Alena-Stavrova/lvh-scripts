@@ -148,11 +148,12 @@ def choose_address():
     return(address) #returns a dictionary
 
 def extract_price(price_text):
-    # Extract numeric price from text
-    # Remove all characters except digits and the comma (EU format)
+    # Remove all characters except digits and the comma/dot
+    # Only EU, US have dot (23.95 EU - no need to replace), the rest have comma
     clean_text = re.sub(r'[^\d,]', '', price_text)
-    # Replace comma with dot
-    clean_text = clean_text.replace(',', '.')    
+    # Replace comma with dot 
+    clean_text = clean_text.replace(',', '.')
+    # clean_text = clean_text.replace(',', '.')    
     try:
         return float(clean_text)
     except ValueError:
