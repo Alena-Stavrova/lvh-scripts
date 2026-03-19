@@ -409,7 +409,7 @@ def select_payment_option():
         take_screenshot("payment_option_error")
         return False, "Error"
 
-def fill_order_form(user_email, test_phone, exp_elivery, price_class):
+def fill_order_form(user_email, test_phone, exp_delivery, price_class):
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']

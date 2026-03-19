@@ -47,6 +47,11 @@ def take_screenshot(name):
     print(f"(Screenshot saved as: {filename})")
     return filename
 
+# Order context class to store all data
+class OrderContext:
+    def __init__(self):
+        
+
 # Step counter class to count step number automatically
 class StepCounter:
     def __init__(self):
