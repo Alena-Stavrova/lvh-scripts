@@ -73,53 +73,53 @@ class OrderContext:
             'unavailable': []
         }
      
-        self.delivery_options = {
-            1: {
+        self.delivery_options = [
+            {            
                 "local_name": "consegna standard",
                 "en_name": "standard",
                 "opt_id": "ID_SHIPPING_METHOD_ID_16",
                 'is_default': True
                 },
-            2: {
+            {
                 "local_name": "consegna espressa",
                 "en_name": "express",
                 "opt_id": "ID_SHIPPING_METHOD_ID_27",
                 'is_default': False
                 }
-            }
+            ]
 
         self.selected_delivery = None 
             
-        self.payment_options = {
-            1: {
+        self.payment_options = [
+            {
                 "local_name": "bonifico bancario",
                 "en_name": "Bank transfer",
                 "opt_id": "ID_PAY_SYSTEM_ID_24",
                 'is_default': True,
                 'is_cash': False
                 },
-            2: {
+            {
                 "local_name": "in contanti alla consegna",
                 "en_name": "Cash on delivery",
                 "opt_id": "ID_PAY_SYSTEM_ID_22",
                 'is_default': False,
                 'is_cash': True            
                 },
-            3: {
+            {
                 "local_name": "carta di credito/debito",
                 "en_name": "Credit/debit card",
                 "opt_id": "ID_PAY_SYSTEM_ID_53",
                 'is_default': False,
                 'is_cash': False
                 },
-            4: {
+            {
                 "local_name": "PayPal",
                 "en_name": "PayPal",
                 "opt_id": "ID_PAY_SYSTEM_ID_23",
                 'is_default': False,
                 'is_cash': False
                 }
-        }
+        ]
 
         self.selected_payment = None
         
@@ -170,6 +170,19 @@ class OrderContext:
         # If no default marked, return first one
         return self.delivery_options[0] if self.delivery_options else None
 
+    def get_default_payment(self):
+        for option in self.payment_options:
+            if option.get('is_default', False):
+                return option
+        # If no default marked, return first one
+        return self.payment_options[0] if self.payment_options else None
+
+    def get_cash_payment(self):
+        for option in self.payment_options:
+            if option.get('is_cash', False):
+                return option
+        return None
+        
     def get_expected_shipping_fee(self, delivery_option, payment_option, price_class):       
         # Express delivery case
         if delivery_option == 'consegna espressa':
@@ -528,7 +541,9 @@ def proceed_to_checkout():
 def select_delivery_option(order):
     try:
         print("Selecting delivery option...")    
-        selected = random.choice(order.delivery_options)
+        delivery_options = order.delivery_options
+        selected = random.choice(delivery_options)
+
         # Update order context
         order.selected_delivery = selected
 
@@ -576,12 +591,27 @@ def select_delivery_option(order):
         take_screenshot("delivery_option_error")
         return False, "Error"
 
-       
-
-def select_payment_option(delivery_option):
-    global default_payment
+def select_payment_option(order):
     try:
         print("Selecting payment option...")
+        if order.selected_delivery == "consegna espressa":
+        payment_options = order.payment_options
+        selected = random.choice(payment_options)
+
+        # Update order context
+        order.selected_payment = selected
+
+        selected_name = selected['local_name']
+        selected_id = selected['opt_id']
+        print(f"Selected delivery option: {selected_name}")
+        
+        # Get default delivery from order context
+        default = order.get_default_delivery()
+        default_name = default['local_name'] if default else None
+        
+
+
+        
         
         # Define payment options with their corresponding IDs 
         payment_options = {
