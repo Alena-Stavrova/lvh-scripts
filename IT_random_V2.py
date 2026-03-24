@@ -131,7 +131,7 @@ class OrderContext:
                 'is_default': False,
                 'is_cash': False,
                 'compatible_with': {
-                    'delivery': ['consegna standard', 'consegna espressa']
+                    'delivery': ['consegna standard', 'consegna espressa'],
                     'price_class': [0, 1]
                 }
             }
@@ -311,7 +311,6 @@ class OrderContext:
 
 # Choose random sku, return a string and int price class
 def choose_sku(order):
-    # Try both price classes if needed
     # For IT price classes are only relevant for shipping costs
     price_classes_to_try = [0, 1]
     random.shuffle(price_classes_to_try) 
@@ -320,7 +319,7 @@ def choose_sku(order):
         sku_list = order.get_sku_list(price_class)
         available_skus = [
             str(sku) for sku in sku_list 
-            if str(sku) not in order.sku_config['unavailable']
+            if str(sku) not in order.sku['unavailable']
         ]
         
         if available_skus:
@@ -440,8 +439,9 @@ def search_for_sku(sku):
         take_screenshot("search_error")
         return False
 
-def is_item_available(sku):
+def is_item_available(order):
     # Is only applied when sku != None
+    sku = order.sku['selected']
     try:
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
@@ -708,7 +708,7 @@ def select_payment_option(order):
         # Only interact with UI if not default
         if selected_name != default_name:
             try:
-                payment_label = wait.until(
+                payment_label = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 
                         f"label[for='{selected_id}']"))
                 )
@@ -1028,21 +1028,22 @@ def main_it(email, phone):
         while True:
             # Only choose the skus that are NOT in unavailable_items
             my_sku, price_class = choose_sku(order)
+            total_skus = order.get_all_skus()
             if my_sku != None:
                 print(f"Chosen SKU: {str(my_sku)}")
 
                 step_counter.print_step("Searching for SKU")
                 # Avaialability check already includes search_for_sku
-                available, status = is_item_available(my_sku)
+                available, status = is_item_available(order)
     
                 if available:
                     print(f"✓ SKU {my_sku} is available")
                     break
                 # If item is NOT available:
                 else:
-                    if len(items_unavailable) < total_skus: 
+                    if len(order.sku['unavailable']) < len(total_skus): 
                         print(f"✗ SKU {my_sku} not available: {status}")
-                        items_unavailable.append(str(my_sku))
+                        order.sku['unavailable'].append(str(my_sku))
                         time.sleep(1)  # Small delay before retry
 
             # If choose_sku() returns None, meaning all items are unavailable

@@ -126,6 +126,7 @@ class OrderContext:
                 "opt_id": None,
                 'is_default': True,
                 'is_cash': False,
+                'is_virtual': True,    # Virtual = no UI element, but should be tracked for summary
                 'compatible_with': {
                     'delivery': 'kurierzustellung',
                     'price_class': [0]
@@ -179,15 +180,62 @@ class OrderContext:
         return self.delivery_options[0] if self.delivery_options else None
 
     def get_available_payment_options(self):
-        # If no delivery seletcted, returns empty list
-        if not self.selected_delivery:
-            return[]
-        delivery_name = self.selected_delivery['local_name']
+        if not self.sku.get('price_class') is None:
+            price_class = self.sku['price_class']
+        else:
+            price_class = None
+        
+        delivery_name = self.selected_delivery['local_name'] if self.selected_delivery else None
 
-        return [
-            option for option in self.payment_options
-            if delivery_name in option['compatible_with']
-        ]
+        available = []
+        for option in self.payment_options:
+            compatible = option.get('compatible_with', {})
+            
+            # Check delivery compatibility (if delivery is set)
+            delivery_ok = True
+            if delivery_name and 'delivery' in compatible:
+                delivery_ok = delivery_name in compatible['delivery']
+            
+            # Check price class compatibility (if price class is set)
+            price_ok = True
+            if price_class is not None and 'price_class' in compatible:
+                price_ok = price_class in compatible['price_class']
+            
+            if delivery_ok and price_ok:
+                available.append(option)
+        
+        return available
+    
+    def get_default_payment(self):
+        available = self.get_available_payment_options()
+        
+        for option in available:
+            if option.get('is_default', False):
+                return option
+        
+        return available[0] if available else None
+
+    # NO cash payment
+
+    def get_expected_shipping_fee(self):
+        if not self.selected_delivery:
+            return None, None
+
+        delivery_name = self.selected_delivery['local_name']
+        price_class = self.sku['price_class']  # 0 = under 70, 1 = over 70
+
+        # Only have standard delivery
+        if price_class == 0:  # Under 70€
+            tier = 'under_70'
+        else:  # Over 70€
+            tier = 'over_70'
+
+        fee_data = self.fees['shipping']['standard'][tier]
+        return fee_data['display']
+
+
+
+
 
 
 
