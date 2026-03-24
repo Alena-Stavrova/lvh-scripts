@@ -4,7 +4,7 @@ import DE_random_V2 as de
 #import ES_random_V2 as es
 import EU_random_V2 as eu
 #import HU_random_V2 as hu
-#import IT_random_V2 as it
+import IT_random_V2 as it
 #import PL_random_V2 as pl
 #import TR_random_V2 as tr
 import US_random_V2 as us
@@ -18,7 +18,7 @@ script_modules = {
     #'ES': es,
     'EU': eu,
     #'HU': hu,
-    #'IT': it,
+    'IT': it,
     #'PL': pl,
     #'TR': tr,
     'US': us

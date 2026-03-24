@@ -408,6 +408,7 @@ def select_payment_option():
         return False, "Error"
 
 def fill_order_form(user_email, test_phone, exp_delivery, price_class):
+    default_payment = "bank transfer"
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
