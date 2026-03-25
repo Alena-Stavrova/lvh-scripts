@@ -62,102 +62,102 @@ class OrderContext:
         self.user_email = None
         self.user_phone = None
     
-    self.sku_lists = {
-        'price_classes': {
-            0: [83836, 69737, 74830, 78663, 29276], # Under 70 EU
+        self.sku_lists = {
+            'price_classes': {
+                0: [83836, 69737, 74830, 78663, 29276], # Under 70 EU
 
-            1: [84558, 70818, 79054, 78666, 72098] # 70+ EU
-        }
-    }
-
-    self.sku = {
-        'selected': None,
-        'price_class': None,
-        'unavailable': []     # Track unavailable SKUs
-    }
-
-    self.delivery_options = [
-            {            
-                "local_name": "kurierzustellung",
-                "en_name": "courier",
-                "opt_id": "ID_SHIPPING_METHOD_ID_21",
-                'is_default': True
-                }
-            ]
-    
-    self.selected_delivery = None
-
-    self.payment_options = [
-            {
-                "local_name": "überweisung",
-                "en_name": "Bank transfer",
-                "opt_id": "ID_PAY_SYSTEM_ID_39",
-                'is_default': True,
-                'is_cash': False,
-                'compatible_with': {
-                    'delivery': 'kurierzustellung',
-                    'price_class': [1]
-                }    
-            },
-            {
-                "local_name": "kredit-/ec-karte",
-                "en_name": "Credit/debit card",
-                "opt_id": "ID_PAY_SYSTEM_ID_51",
-                'is_default': False,
-                'is_cash': False,
-                'compatible_with': {
-                    'delivery': 'kurierzustellung',
-                    'price_class': [1]
-                }
-            },
-            {
-                "local_name": "PayPal",
-                "en_name": "PayPal",
-                "opt_id": "ID_PAY_SYSTEM_ID_40",
-                'is_default': False,
-                'is_cash': False,
-                'compatible_with': {
-                    'delivery': 'kurierzustellung',
-                    'price_class': [1]
-                }
-            },
-            {
-                "local_name": "TBD",   # Actually no name displayed
-                "en_name": "TBD",
-                "opt_id": None,
-                'is_default': True,
-                'is_cash': False,
-                'is_virtual': True,    # Virtual = no UI element, but should be tracked for summary
-                'compatible_with': {
-                    'delivery': 'kurierzustellung',
-                    'price_class': [0]
-                }
-            }   
-        ]
-    
-    self.selected_payment = None
-
-    self.fees = {
-            'shipping': {
-                'standard': {
-                    'under_70': {
-                        'display': 'noch festzulegen'
-                    },
-                    'over_70': {
-                        'display': 'Kostenloser Versand'
-                    }
-                }
+                1: [84558, 70818, 79054, 78666, 72098] # 70+ EU
             }
         }
 
-    # Results summary
-    self.summary = {
-        'delivery_option': None,
-        'payment_option': None,
-        'basket_price': None,
-        'order_result': None,
-        'expected_fee': None,
-        'order_fee': None}
+        self.sku = {
+            'selected': None,
+            'price_class': None,
+            'unavailable': []     # Track unavailable SKUs
+        }
+
+        self.delivery_options = [
+                {            
+                    "local_name": "kurierzustellung",
+                    "en_name": "courier",
+                    "opt_id": "ID_SHIPPING_METHOD_ID_21",
+                    'is_default': True
+                    }
+                ]
+    
+        self.selected_delivery = None
+
+        self.payment_options = [
+                {
+                    "local_name": "überweisung",
+                    "en_name": "Bank transfer",
+                    "opt_id": "ID_PAY_SYSTEM_ID_39",
+                    'is_default': True,
+                    'is_cash': False,
+                    'compatible_with': {
+                        'delivery': 'kurierzustellung',
+                        'price_class': [1]
+                    }    
+                },
+                {
+                    "local_name": "kredit-/ec-karte",
+                    "en_name": "Credit/debit card",
+                    "opt_id": "ID_PAY_SYSTEM_ID_51",
+                    'is_default': False,
+                    'is_cash': False,
+                    'compatible_with': {
+                        'delivery': 'kurierzustellung',
+                        'price_class': [1]
+                    }
+                },
+                {
+                    "local_name": "PayPal",
+                    "en_name": "PayPal",
+                    "opt_id": "ID_PAY_SYSTEM_ID_40",
+                    'is_default': False,
+                    'is_cash': False,
+                    'compatible_with': {
+                        'delivery': 'kurierzustellung',
+                        'price_class': [1]
+                    }
+                },
+                {
+                    "local_name": "TBD",   # Actually no name displayed
+                    "en_name": "TBD",
+                    "opt_id": None,
+                    'is_default': True,
+                    'is_cash': False,
+                    'is_virtual': True,    # Virtual = no UI element, but should be tracked for summary
+                    'compatible_with': {
+                        'delivery': 'kurierzustellung',
+                        'price_class': [0]
+                    }
+                }   
+            ]
+    
+        self.selected_payment = None
+
+        self.fees = {
+                'shipping': {
+                    'standard': {
+                        'under_70': {
+                            'display': 'noch festzulegen'
+                        },
+                        'over_70': {
+                            'display': 'Kostenloser Versand'
+                        }
+                    }
+                }
+            }
+
+        # Results summary
+        self.summary = {
+            'delivery_option': None,
+            'payment_option': None,
+            'basket_price': None,
+            'order_result': None,
+            'expected_fee': None,
+            'order_fee': None}
 
     def get_sku_list(self, price_class):
         # Returns the SKU list for a specific price class
@@ -230,7 +230,7 @@ class OrderContext:
         else:  # Over 70€
             tier = 'over_70'
 
-        return self.fees['shipping']['standard'][tier], None # Return display string only
+        return self.fees['shipping']['standard'][tier]['display'], None # Return display string only
     
     def get_expected_payment_fee(self):
         # DE has no payment fees
@@ -868,6 +868,8 @@ def verify_order_fee(order):
         else:
             print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
             return False, actual_fee
+        
+        #✗ Fee mismatch: Expected '{'display': 'noch festzulegen'}', got 'noch festzulegen'
             
     except Exception as e:
         print(f"✗ Error verifying order fees: {str(e)}")
@@ -988,7 +990,7 @@ def main_de(email, phone):
                     step_counter.print_step("Checking cart contents")
                     if check_cart_contents(my_sku):
                         step_counter.print_step("Getting cart total price")
-                        basket_price = et_total_price_basket(order)
+                        basket_price = get_total_price_basket(order)
 
                         if basket_price is not None:
                             print(f"Cart total price: {basket_price}")

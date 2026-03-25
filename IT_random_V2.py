@@ -126,7 +126,7 @@ class OrderContext:
                     'delivery': ['consegna standard'],
                     'price_class': [0, 1]
                 }
-                },
+            },
             {
                 "local_name": "PayPal",
                 "en_name": "PayPal",
