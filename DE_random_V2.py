@@ -56,6 +56,7 @@ class StepCounter:
         print(f"\n--- Step {self.step}: {message} ---")
         self.step += 1
 
+# Container for all order-related data
 class OrderContext:
     def __init__(self):
         self.user_email = None
@@ -221,7 +222,6 @@ class OrderContext:
         if not self.selected_delivery:
             return None, None
 
-        delivery_name = self.selected_delivery['local_name']
         price_class = self.sku['price_class']  # 0 = under 70, 1 = over 70
 
         # Only have standard delivery
@@ -230,30 +230,41 @@ class OrderContext:
         else:  # Over 70€
             tier = 'over_70'
 
-        fee_data = self.fees['shipping']['standard'][tier]
-        return fee_data['display']
+        return self.fees['shipping']['standard'][tier], None # Return display string only
+    
+    def get_expected_payment_fee(self):
+        # DE has no payment fees
+        return None, None
+    
+    def get_expected_total_fee(self):
+        # For DE, just return the shipping fee display string
+        ship_display, _ = self.get_expected_shipping_fee()
+        return ship_display, None
+   
 
+    def update_summary(self, **kwargs):
+        self.summary.update(kwargs)
 
-
-
-
-
-
-
-# Choose random sku, return a string
-def choose_sku(skus_0, skus_1, items_unavailable):
-    # Try both price classes if needed
+# Choose random sku, return a string and int price class
+def choose_sku(order):
     price_classes_to_try = [0, 1]
-    random.shuffle(price_classes_to_try)  # Try in random order
+    random.shuffle(price_classes_to_try)  
     
     for price_class in price_classes_to_try:
-        if price_class == 0:
-            available_skus = [str(sku) for sku in skus_0 if str(sku) not in items_unavailable]
-        else:  # price_class == 1
-            available_skus = [str(sku) for sku in skus_1 if str(sku) not in items_unavailable]
+        sku_list = order.get_sku_list(price_class)
+        available_skus = [
+            str(sku) for sku in sku_list 
+            if str(sku) not in order.sku['unavailable']
+        ]
         
         if available_skus:
-            return random.choice(available_skus), price_class
+            selected_sku = random.choice(available_skus)
+            order.sku['selected'] = selected_sku
+            order.sku['price_class'] = price_class
+            
+            print(f"✓ Selected SKU: {selected_sku} (Price class: {price_class})")
+            return selected_sku, price_class
+            return selected, price_class
     
     # If we get here, both classes have no available SKUs
     print("✗ WARNING: No available SKUs in either price class!")
@@ -289,30 +300,13 @@ def extract_price(price_text):
     # Only EU, US have dot (23.95 EU - no need to replace), the rest have comma
     clean_text = re.sub(r'[^\d,]', '', price_text)
     # Replace comma with dot 
-    clean_text = clean_text.replace(',', '.')
-    # clean_text = clean_text.replace(',', '.')    
+    clean_text = clean_text.replace(',', '.')  
     try:
         return float(clean_text)
     except ValueError:
         return None
     
-def get_total_price():
-    # Extract the total price from the Cart price block
-    try:
-        price_text = driver.find_element(By.CLASS_NAME, 'cart-panel__price').text
-        price = extract_price(price_text)
-        if price is not None:
-            return price               
-             
-        print("✗ Could not find total price on page")
-        return None
-        
-    except Exception as e:
-        print(f"✗ Error extracting price: {str(e)}")
-        return None
-
-def close_cookie_popup():
-    # Close the cookie consent popup 
+def close_cookie_popup(): 
     try:
         accept_button = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, ".cky-btn.cky-btn-accept"))
@@ -327,7 +321,6 @@ def close_cookie_popup():
         return False
 
 def search_for_sku(sku):
-    # Find item by SKU search
     try:
         print("Navigating to main page...")
         driver.get(website_main)
@@ -367,7 +360,7 @@ def search_for_sku(sku):
         take_screenshot("search_results")
 
         if sku == card_sku:        
-            print("✓ Search completed successfully")
+            print("Search completed successfully")
             return True
         else:
             print(f"✗ First found item doesn't match the search: looked for {sku}, first item is {card_sku}")
@@ -378,11 +371,13 @@ def search_for_sku(sku):
         take_screenshot("search_error")
         return False
 
-def is_item_available(sku):
+def is_item_available(order):
     # Is only applied when sku != None
+    sku = order.sku['selected']
     try:
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
+        # Check language file for the translations: out of stock, discontinued, coming soon
         unavailable_indicators = ["nicht auf lager", "nicht mehr erhältlich", "demnächst verfügbar"]
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
@@ -413,7 +408,8 @@ def get_offer_id(sku):
             print(f"✓ Found offer ID: {offer_id}")
             return int(offer_id)
         else:
-            print("✗ No data-id attribute found on container")
+            print("✗ Failed to get offer ID: {str(e)}")
+            take_screenshot("offer_id_error")
             return None
             
     except Exception as e:
@@ -498,7 +494,6 @@ def check_cart_contents(sku, expected_quantity=1):
     found = False
     
     for cart_item in cart_items:  # cart_item is the whole DIV for a basket item
-        # Check if this cart item has our SKU
         if str(sku) in cart_item.text:
             found = True
             # Get quantity directly in element counter
@@ -514,6 +509,23 @@ def check_cart_contents(sku, expected_quantity=1):
     
     print(f"Total quantity: {total_qty}, Expected: {expected_quantity}")
     return total_qty == expected_quantity
+
+def get_total_price_basket(order):
+    # Extract the total price from the Cart price block
+    try:
+        price_text = driver.find_element(By.CLASS_NAME, 'cart-panel__price').text
+        price = extract_price(price_text)
+        if price is not None:
+            order.summary['basket_price'] = price
+            print(order.summary['basket_price'])
+            return price              
+             
+        print("✗ Could not find total price on page")
+        return None
+        
+    except Exception as e:
+        print(f"✗ Error extracting price: {str(e)}")
+        return None
 
 def proceed_to_checkout():
     # Click the checkout button, verify Basket > Order page
@@ -549,70 +561,113 @@ def proceed_to_checkout():
         take_screenshot("checkout_error")
         return False
 
-def select_payment_option():
-    # Only available for items 70+ EU (otherwise TBD, default)
+def select_delivery_option(order):
     try:
-        print("Selecting payment option...")
+        delivery_options = order.delivery_options
+        selected = random.choice(delivery_options) # Only 1 option, but left structure for consistency
+
+        # Update order context
+        order.selected_delivery = selected
+
+        selected_name = selected['local_name']
+        selected_id = selected['opt_id']
+        print(f"Selected: {selected_name}")
         
-        # Define payment options with their corresponding IDs (equal probability)
-        payment_options = {
-            "überweisung": {
-                "local_name": "überweisung",
-                "en_name": "Bank transfer",
-                "opt_id": "ID_PAY_SYSTEM_ID_39"
-                },
-            "kredit-/ec-karte": {
-                "local_name": "kredit-/ec-karte",
-                "en_name": "Credit/debit card",
-                "opt_id": "ID_PAY_SYSTEM_ID_51"
-                },
-            "PayPal": {
-                "local_name": "PayPal",
-                "en_name": "PayPal",
-                "opt_id": "ID_PAY_SYSTEM_ID_40"
-                }
-        }
+        # Get default delivery from order context
+        default = order.get_default_delivery()
+        default_name = default['local_name'] if default else None
 
-        # Randomly select any payment option
-        selected_option = random.choice(list(payment_options.keys()))
-        selected_option_local_name = payment_options[selected_option]['local_name']
-        selected_option_en_name = payment_options[selected_option]['en_name']
-        selected_option_id = payment_options[selected_option]['opt_id']
-        
-        print(f"Selected payment option: {selected_option_local_name}({selected_option_en_name})")
-        payment_label = wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, f"label[for='{selected_option_id}']"))
-        )
-
-        # Only interact with the UI if it's not the default option
-        if selected_option_en_name != "Bank transfer":
-            # Find and click the payment option using its ID
-            try:
-                print("Found payment label, attempting to click...")
-                payment_label.click()
-                time.sleep(1)
-                return True, selected_option_local_name
-
-            except Exception as e:
-                print(f"Failed to select payment option {selected_option_local_name}: {str(e)}")
-                return False, selected_option_local_name
-
-        else:
-            print("Using default payment option (Bank transfer), no action needed")
-            return True, selected_option_local_name
-
-        time.sleep(1)
-        
+        # Only 1 option (= default) and no need to click       
+        print(f"Using default delivery option ({default_name}), no action needed")
+        return True, selected_name
+            
     except Exception as e:
-        print(f"Error in payment selection process: {str(e)}")
-        take_screenshot("payment_option_error")
+        print(f"✗ Error in delivery selection process: {str(e)}")
+        take_screenshot("delivery_option_error")
         return False, "Error"
 
-# Too many arguments - either remove choosing delivery/payment options or pass a dict instead
-def fill_order_form(user_email, test_phone, exp_delivery, price_class):
+def select_payment_option(order):
+    try:
+        print("Selecting payment option...")
+        available_options = order.get_available_payment_options()
+        
+        if not available_options:
+            print("✗ No payment options available for this delivery")
+            return False, None
+        
+        # Separate real (clickable) from virtual (no click needed)
+        real_options = [opt for opt in available_options if not opt.get('is_virtual', False)]
+        virtual_options = [opt for opt in available_options if opt.get('is_virtual', False)]
+
+        # Choose appropriate option
+        if real_options:
+            selected = random.choice(real_options)
+            need_click = True
+            print(f"Selected real option: {selected['local_name']}")
+        elif virtual_options:
+            selected = virtual_options[0]
+            need_click = False
+            print(f"Selected virtual option: {selected['local_name']}")
+        else:
+            print("✗ No payment options available")
+            return False, None
+
+        # Update order context
+        order.selected_payment = selected
+        selected_name = selected['local_name']
+        selected_id = selected['opt_id']
+
+        # Get default payment
+        default = order.get_default_payment()
+        default_name = default['local_name'] if default else None
+        
+        # Only interact with UI if real & not default
+        if need_click and selected_name != default_name:
+            try:
+                payment_label = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 
+                        f"label[for='{selected_id}']"))
+                )
+                print("Found payment label, attempting to click...")
+                
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});",
+                    payment_label
+                )
+                time.sleep(0.5)
+                payment_label.click()
+                time.sleep(1)
+                
+                print(f"✓ Successfully selected {selected_name}")
+                return True, selected_name
+                
+            except Exception as e:
+                # Fallback: try JavaScript click if normal click fails
+                try:
+                    print("Attempting JavaScript click fallback...")
+                    driver.execute_script(
+                        f"document.querySelector('label[for=\"{selected_id}\"]').click();"
+                    )
+                    time.sleep(1)
+                    print(f"✓ Successfully selected {selected_name} via JavaScript")
+                    return True, selected_name
+                except:
+                    print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
+                    return False, selected_name
+        else:
+            print(f"Using {selected_name} (virtual or default), no action needed")
+            return True, selected_name
+            
+    except Exception as e:
+        print(f"✗ Error in payment selection process: {str(e)}")
+        take_screenshot("payment_option_error")
+        return False, "Error"       
+
+def fill_order_form(user_email, test_phone):
     try:
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
+        city_name = ship_to['city'] 
         print(f"Chosen address in: {str(ship_to['country'])}, {str(ship_to['city'])}")
         
         # Wait for the form to be present
@@ -710,7 +765,7 @@ def fill_order_form(user_email, test_phone, exp_delivery, price_class):
             
             # Clear and fill the field
             city_field.clear()
-            city_field.send_keys(ship_to['city'])
+            city_field.send_keys(city_name)
             print("City field filled")
             
             # Press Tab to move to next field (this might help with form validation)
@@ -770,73 +825,54 @@ def fill_order_form(user_email, test_phone, exp_delivery, price_class):
         # Order comment (2 lines)
         try:
             comment_field = driver.find_element(By.ID, "ORDER_DESCRIPTION")
-            driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alyona\'s helpful minions";', comment_field)
+            driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alena\'s helpful minions";', comment_field)
             print("Comment field filled")
         
         except Exception as e:
             print(f"✗ Error with comment field: {str(e)}")
             take_screenshot("comment_field_error")
-        
-        # Check delivery options
-        print("Checking delivery options...")
-        try:
-            # Look for the specific courier delivery option
-            courier_option = driver.find_element(By.CSS_SELECTOR, f"label[for='{exp_delivery['exp_delivery_id']}']")
-
-            if courier_option:
-                print(f"Found a courier delivery option as expected: {exp_delivery['exp_delivery_local_name']}")
-                my_delivery = exp_delivery['exp_delivery_local_name']
-                # Scroll to the delivery section to take screenshot
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", courier_option)
-                time.sleep(2)
-                take_screenshot("delivery_section")
-                
-            else:
-                print(f"✗ Could not find the {exp_delivery['exp_delivery_local_name']} option")
-
-        except Exception as e:
-            print(f"✗ Could not check delivery options: {str(e)}")
-
-        if price_class == 1:
-            # Select payment option, if price is 70+ EU
-            option_sel_success, chosen_payment_option = select_payment_option()
-
-            # If selection failed, can still place an order with the default option
-            if not option_sel_success:
-                print("✗ Payment selection failed, but continuing with order process")
-            # If selection worked
-            else:
-                my_payment = chosen_payment_option
-
-        else:
-            # Default TBD payment for items under 70 EU
-            print("Order value below 70€, using default payment option")
-            my_payment = default_payment
 
         print("✓ Order form filled successfully")
-        return True, my_delivery, my_payment
+        return True
         
     except Exception as e:
         print(f"✗ Error filling order form: {str(e)}")
         # Add traceback to see where it's failing
         traceback.print_exc()
         take_screenshot("order_form_error")
-        return False, my_delivery, my_payment
-
-def verify_free_shipping():
-    try:
-        print("Verifying free shipping...")
-        time.sleep(2)
-        free_shipping_element = wait.until(
-            EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
-        )    
-        return free_shipping_element.text
-            
-    except Exception as e:
-        print(f"Error verifying free shipping: {str(e)}")
-        take_screenshot("free_shipping_verification_error")
         return False
 
+def verify_order_fee(order):
+    try:
+        print("Verifying order fees...")
+        time.sleep(2)
+
+        # Get actual fee from page
+        fee_element = wait.until(
+            EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
+        )    
+        actual_fee = fee_element.text
+        print(f"Actual fee on page: '{actual_fee}'")
+
+        # Get expected fee from order context
+        expected_display, _ = order.get_expected_total_fee()
+        order.summary['expected_fee'] = expected_display
+        
+        if expected_display is None:
+            print(f"✗ Can't determine expected fee")
+            return False, actual_fee
+        
+        if actual_fee == expected_display:
+            print(f"✓ Fee verified: {actual_fee}")
+            return True, actual_fee
+        else:
+            print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
+            return False, actual_fee
+            
+    except Exception as e:
+        print(f"✗ Error verifying order fees: {str(e)}")
+        take_screenshot("fee_verification_error")
+        return False, "Error"
 
 def place_order():
     # Finalize the order by clicking the checkout button on the order form
@@ -897,54 +933,32 @@ def main_de(email, phone):
         user_email = email
         test_phone = phone
 
+        order = OrderContext()
+
         print("\nLaunching browser...")
         driver = create_optimized_driver()
         driver.maximize_window()
         wait = WebDriverWait(driver, 20)
 
-        # List of SKUS and price classes
-        skus_0 = [83836, 83820, 84547, 84545, 83089] # Under 70 EU
-        skus_1 = [84558, 84638, 84087, 83842, 85574] #70+ EU
-        items_unavailable = []
-        total_skus = len(skus_0) + len(skus_1)
-
-        # Initialize expected delivery and payment options
-        my_delivery = None
-        exp_delivery = {
-            "exp_delivery_local_name": "kurierzustellung",
-            "exp_delivery_en_name": "Courier delivery",
-            "exp_delivery_id": "ID_SHIPPING_METHOD_ID_21"
-        }
-    
-        my_payment = None
-        default_payment = "TBD"
-
-        # Initialize all variables for the final summary
-        delivery_option_summary = None
-        payment_option_summary = None
-        basket_price = None
-        order_price = None
-        order_result = None
-        # Add free shipping check later
-
         while True:
             # Only choose the skus that are NOT in unavailable_items
-            my_sku, price_class = choose_sku(skus_0, skus_1, items_unavailable)
+            my_sku, price_class = choose_sku(order)
+            total_skus = order.get_all_skus()
             if my_sku != None:
                 print(f"Chosen SKU: {str(my_sku)}")
 
                 step_counter.print_step("Searching for SKU")
                 # Avaialability check already includes search_for_sku
-                available, status = is_item_available(my_sku)
+                available, status = is_item_available(order)
     
                 if available:
                     print(f"✓ SKU {my_sku} is available")
                     break
                 # If item is NOT available:
                 else:
-                    if len(items_unavailable) < total_skus: 
+                    if len(order.sku['unavailable']) < len(total_skus): 
                         print(f"✗ SKU {my_sku} not available: {status}")
-                        items_unavailable.append(str(my_sku))
+                        order.sku['unavailable'].append(str(my_sku))
                         time.sleep(1)  # Small delay before retry
 
             # If choose_sku() returns None, meaning all items are unavailable
@@ -953,18 +967,16 @@ def main_de(email, phone):
                 print("Closing the browser")
                 driver.quit()
                 sys.exit()
+                #return?
 
-        if price_class == 1:
-            exp_ship_fee = "Kostenloser Versand"
-        else:
-            exp_ship_fee = "noch festzulegen"
-        ship_verified = False
+        order.sku['selected'] = my_sku
+        order.sku['price_class'] = price_class
 
         step_counter.print_step("Getting offer ID")
         offer_id = get_offer_id(my_sku)
 
         if offer_id:
-            step_counter.print_step("Adding to cart via API")
+            step_counter.print_step("Adding to cart")
                 
             if add_to_cart_via_api(offer_id, 1):
                 print("Refreshing page to synchronize UI")
@@ -976,7 +988,7 @@ def main_de(email, phone):
                     step_counter.print_step("Checking cart contents")
                     if check_cart_contents(my_sku):
                         step_counter.print_step("Getting cart total price")
-                        basket_price = get_total_price()
+                        basket_price = et_total_price_basket(order)
 
                         if basket_price is not None:
                             print(f"Cart total price: {basket_price}")
@@ -985,48 +997,47 @@ def main_de(email, phone):
                             take_screenshot("basket_before_checkout")
                                 
                             if proceed_to_checkout():
-                                step_counter.print_step("Getting order page total price")
-                                order_price = get_total_price()
-
-                                if order_price is not None:
-                                    print(f"Order page total price: {order_price}")
-                                    take_screenshot("order_with_price")
-                                    
-                                    # Compare prices
-                                    if abs(basket_price - order_price) < 0.01:  # Account for floating point precision
-                                        print("✓ SUCCESS: Prices match between cart and order pages!")
-                                        print(f"Total price: {order_price}")
-
-                                        fill_form_success, delivery_option_summary, payment_option_summary = fill_order_form(user_email, test_phone, exp_delivery, price_class)
-                                        if fill_form_success:
-                                            ship_cost = verify_free_shipping()
-                                            if ship_cost == exp_ship_fee:
-                                                ship_verified = True
-                                                print(f"✓ Shipping fee as expected: {ship_cost}")
-                                            
-                                                step_counter.print_step("Placing order")
-                                                order_result = place_order()
-
-                                                if order_result:
-                                                    print("✓ Order successfully placed!")
-                                                    time.sleep(3)
-                                                    step_counter.print_step("Getting the order number")
-                                                    test_order_num = get_order_number()
-
-                                                else:
-                                                    print("✗ Failed to place order")
-
-                                            else:
-                                                print(f"✗ Shipping fees don't match: expected {exp_ship_fee}, found {ship_cost}")                                                    
-
-                                        else:
-                                            print("✗ Failed to fill order form") 
-                                            
+                                step_counter.print_step("Filling order form")
+                                fill_form_success = fill_order_form(user_email, test_phone)
+                                
+                                if fill_form_success:
+                                    step_counter.print_step("Selecting delivery option")
+                                    delivery_success, delivery = select_delivery_option(order)
+                                    if delivery_success:
+                                        print(f"Delivery selected: {delivery}")
+                                        order.summary['delivery_option'] = delivery
                                     else:
-                                        print(f"✗ WARNING: Prices don't match! Cart: {basket_price}, Order: {order_price}")
-                                                                                       
+                                        print("✗ Delivery selection failed, aborting")
+                                        #return
+                                        sys.exit(1)
+
+                                    step_counter.print_step("Selecting payment option")
+                                    payment_success, payment = select_payment_option(order)
+                                    if payment_success:
+                                        print(f"Payment selected: {payment}")
+                                        order.summary['payment_option'] = payment
+                                    else:
+                                        print("✗ Payment selection failed, but continuing with order process")
+                                            
+                                    time.sleep(2)
+                                    step_counter.print_step("Verifying delivery and payment fees...")
+                                    fee_success, fee_display = verify_order_fee(order)
+                                    if fee_success:
+                                        order.summary['order_fee'] = fee_display
+                                            
+                                    step_counter.print_step("Placing order")
+                                    order_result = place_order()
+
+                                    if order_result:
+                                        print("✓ Order successfully placed!")
+                                        time.sleep(3)
+                                        step_counter.print_step("Getting the order number")
+                                        test_order_num = get_order_number()
+
+                                    else:
+                                        print("✗ Failed to place order")
                                 else:
-                                    print("✗ Could not extract price from order page")
+                                    print("✗ Failed to fill order form")                                            
                             else:
                                 print("\n✗ Failed to proceed to checkout")
                         else:
@@ -1047,25 +1058,17 @@ def main_de(email, phone):
             print(f"Order number: {test_order_num}") # Will return False in case of error
         else:
             print("Order number: order wasn't placed")
-        print(f"Chosen SKU: {str(my_sku)}")
-        print(f"Item price: €{order_price if order_price else 'N/A'}")
-        print(f"Delivery option: {delivery_option_summary}")
-        print(f"Payment option: {payment_option_summary}")
+        print(f"Chosen SKU: {order.sku['selected']}")
+        print(f"Item price: €{order.summary['basket_price']}")
+        print(f"Delivery option: {order.summary['delivery_option']}")
+        print(f"Payment option: {order.summary['payment_option']}")
         
-        # Price match check
-        if basket_price and order_price:
-            if abs(basket_price - order_price) < 0.01:
-                print("Cart and order prices match: ✓ Yes")
-            else:
-                print(f"Cart and order prices match: ✗ No (Cart: {basket_price}, Order: {order_price})")
-        else:
-            print("Cart and order prices match: N/A (missing price data)")
-
         # Shipping fees match check
-        if ship_verified:
-            print(f"Shipping fee: ✓ As expected, '{ship_cost}'")
+        if fee_success:
+            print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
         else:
-            print("✗Shipping fees don't match")
+            print(f"✗Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+        
         
         print("----------END----------")
         time.sleep(10)

@@ -100,8 +100,11 @@ class OrderContext:
                 "opt_id": "ID_PAY_SYSTEM_ID_24",
                 'is_default': True,
                 'is_cash': False,
-                'compatible_with': ['consegna standard', 'consegna espressa']
-                },
+                'compatible_with': {
+                    'delivery':['consegna standard', 'consegna espressa'],
+                    'price_class': [0, 1]
+                }
+            },
             {
                 "local_name": "in contanti alla consegna",
                 "en_name": "Cash on delivery",
@@ -109,7 +112,7 @@ class OrderContext:
                 'is_default': False,
                 'is_cash': True,
                 'compatible_with': {
-                    'delivery': 'consegna standard',
+                    'delivery': ['consegna standard'],
                     'price_class': [0, 1]
                 }
             },
@@ -120,7 +123,7 @@ class OrderContext:
                 'is_default': False,
                 'is_cash': False,
                 'compatible_with': {
-                    'delivery': 'consegna standard',
+                    'delivery': ['consegna standard'],
                     'price_class': [0, 1]
                 }
                 },
@@ -308,7 +311,6 @@ class OrderContext:
     def update_summary(self, **kwargs):
         self.summary.update(kwargs)
 
-
 # Choose random sku, return a string and int price class
 def choose_sku(order):
     # For IT price classes are only relevant for shipping costs
@@ -365,15 +367,13 @@ def extract_price(price_text):
     # Only EU, US have dot (23.95 EU - no need to replace), the rest have comma
     clean_text = re.sub(r'[^\d,]', '', price_text)
     # Replace comma with dot 
-    clean_text = clean_text.replace(',', '.')
-    # clean_text = clean_text.replace(',', '.')    
+    clean_text = clean_text.replace(',', '.')   
     try:
         return float(clean_text)
     except ValueError:
         return None
   
 def close_cookie_popup():
-    # Close the cookie consent popup 
     try:
         accept_button = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, ".cky-btn.cky-btn-accept"))
@@ -388,7 +388,6 @@ def close_cookie_popup():
         return False
 
 def search_for_sku(sku):
-    # Find item by SKU search
     try:
         print("Navigating to main page...")
         driver.get(website_main)
@@ -408,8 +407,8 @@ def search_for_sku(sku):
        
         print("Submitting search...")
         search_input.send_keys(Keys.ENTER)
-        
         print("Waiting for results to load...")
+
         try:
             WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CLASS_NAME, ".b-48.pb-md-24"))
@@ -562,7 +561,6 @@ def check_cart_contents(sku, expected_quantity=1):
     found = False
     
     for cart_item in cart_items:  # cart_item is the whole DIV for a basket item
-        # Check if this cart item has our SKU
         if str(sku) in cart_item.text:
             found = True
             # Get quantity directly in element counter
@@ -690,20 +688,36 @@ def select_payment_option(order):
         if not available_options:
             print("✗ No payment options available for this delivery")
             return False, None
+        
+        # Separate real (clickable) from virtual (no click needed)
+        # No virtual options, but left for consistency
+        real_options = [opt for opt in available_options if not opt.get('is_virtual', False)]
+        virtual_options = [opt for opt in available_options if opt.get('is_virtual', False)]
 
-        selected = random.choice(available_options)
+        # Choose appropriate option
+        if real_options:
+            selected = random.choice(real_options)
+            need_click = True
+            print(f"Selected real option: {selected['local_name']}")
+        elif virtual_options:
+            selected = virtual_options[0]
+            need_click = False
+            print(f"Selected virtual option: {selected['local_name']}")
+        else:
+            print("✗ No payment options available")
+            return False, None
+
         # Update order context
         order.selected_payment = selected
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
-        print(f"Selected payment option: {selected_name}")
 
         # Get default payment
         default = order.get_default_payment()
         default_name = default['local_name'] if default else None
         
-        # Only interact with UI if not default
-        if selected_name != default_name:
+        # Only interact with UI if real & not default
+        if need_click and selected_name != default_name:
             try:
                 payment_label = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 
@@ -716,8 +730,6 @@ def select_payment_option(order):
                     payment_label
                 )
                 time.sleep(0.5)
-                
-                # Click immediately after scrolling
                 payment_label.click()
                 time.sleep(1)
                 
@@ -738,7 +750,7 @@ def select_payment_option(order):
                     print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
                     return False, selected_name
         else:
-            print(f"Using default payment option ({default_name}), no action needed")
+            print(f"Using {selected_name} (virtual or default), no action needed")
             return True, selected_name
             
     except Exception as e:
@@ -746,7 +758,6 @@ def select_payment_option(order):
         take_screenshot("payment_option_error")
         return False, "Error"       
                                                                                                     
-
 def fill_order_form(user_email, test_phone):
     try:
         ship_to = choose_address() #is a dictionary
@@ -909,7 +920,7 @@ def fill_order_form(user_email, test_phone):
         # Order comment (2 lines)
         try:
             comment_field = driver.find_element(By.ID, "ORDER_DESCRIPTION")
-            driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alyona\'s helpful minions";', comment_field)
+            driver.execute_script('arguments[0].value = "Alena Auto Test\\nThis order was made by Alena\'s helpful minions";', comment_field)
             print("Comment field filled")
         
         except Exception as e:
