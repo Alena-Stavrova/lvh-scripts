@@ -691,12 +691,9 @@ def select_payment_option(order):
             print("✗ No payment options available for this delivery")
             return False, None
 
-        # Randomly select any available payment option
         selected = random.choice(available_options)
-        
-        # Store in order context
+        # Update order context
         order.selected_payment = selected
-
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
         print(f"Selected payment option: {selected_name}")
@@ -719,6 +716,8 @@ def select_payment_option(order):
                     payment_label
                 )
                 time.sleep(0.5)
+                
+                # Click immediately after scrolling
                 payment_label.click()
                 time.sleep(1)
                 
@@ -726,8 +725,18 @@ def select_payment_option(order):
                 return True, selected_name
                 
             except Exception as e:
-                print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
-                return False, selected_name
+                # Fallback: try JavaScript click if normal click fails
+                try:
+                    print("Attempting JavaScript click fallback...")
+                    driver.execute_script(
+                        f"document.querySelector('label[for=\"{selected_id}\"]').click();"
+                    )
+                    time.sleep(1)
+                    print(f"✓ Successfully selected {selected_name} via JavaScript")
+                    return True, selected_name
+                except:
+                    print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
+                    return False, selected_name
         else:
             print(f"Using default payment option ({default_name}), no action needed")
             return True, selected_name
