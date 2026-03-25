@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
+# Only need Select for Levenhuk (/order >> selecting country)
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 import time
@@ -241,7 +242,6 @@ class OrderContext:
         ship_display, _ = self.get_expected_shipping_fee()
         return ship_display, None
    
-
     def update_summary(self, **kwargs):
         self.summary.update(kwargs)
 
@@ -464,7 +464,6 @@ def add_to_cart_via_api(offer_id, quantity=1):
         return False
 
 def navigate_to_cart_directly():
-    # Navigate to the cart page directly by URL
     try:
         cart_url = website_main + "basket/"
         print(f"Navigating to cart URL: {cart_url}")
