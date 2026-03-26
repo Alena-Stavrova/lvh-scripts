@@ -10,7 +10,7 @@ These scripts automate order placement that is a part of our regression testing/
 * place an order
 * print a helpful summary in the end (e.g. order number, item's price, cost of delivery etc.)
 
-Scripts done:  DE <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/9eb448d4-69e2-4597-953a-573c44ff8f9c"> EU <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/787a3df3-27a0-4cb7-806d-3aae9e26ffe4" />  IT <img width="16" height="11" alt="image" src="https://raw.githubusercontent.com/stevenrskelton/flag-icon/master/png/16/country-4x3/it.png">  US <img width="16" height="11" alt="image" src="https://github.com/user-attachments/assets/9eb448d4-69e2-4597-953a-573c44ff8f9c"/> (4 / 10)
+Scripts done:  CZ <img width="16" height="11" alt="image" src="https://cz.levenhuk.com/upload/uf/aae/3xkmguzh9wbv2rf1tihnbrwqe2g7opub/CZ.svg"> DE <img width="16" height="11" alt="image" src="https://de.levenhuk.com/upload/uf/c3d/0g1sijegx0japf8h3xrmfwe38yhzncs4/DE.svg"> EU <img width="16" height="11" alt="image" src="https://eu.levenhuk.com/upload/uf/3c6/mjgpqapw7zairhbqam8ti91z8koanis2/EU.svg" />  IT <img width="16" height="11" alt="image" src="https://it.levenhuk.com/upload/uf/902/r191twfwccz3c5yrbdkt32r19fi4trzz/IT.svg">  US <img width="16" height="11" alt="image" src="https://levenhuk.com/upload/uf/414/s7dkq0gx4i2sba9e0zquy5doxzy1qhy3/USA.svg"/> (5 / 10)
 
 For each country*, there will be 2 scripts:
 * <ins>random</ins>: choose payment and/or delivery option randomly; used for daily smoke tests where we typically test 1 random flow
