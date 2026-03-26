@@ -88,12 +88,13 @@ class OrderContext:
                 'en_name': 'ppl parcel box',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_26'
                 },
+            
             {
                 'local_name': 'ppl doručení na adresu',
                 'en_name': 'courier',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_5'
                 }
-            ]
+        ]
 
         self.selected_delivery = None 
             
@@ -105,7 +106,7 @@ class OrderContext:
                 'is_default': True,
                 'is_cash': True,
                 'compatible_with': {
-                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'pl doručení na adresu'],
+                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'ppl doručení na adresu'],
                     'price_class': [0, 1]
                 }
             },
@@ -114,7 +115,7 @@ class OrderContext:
                 'en_name': 'credit card',
                 'opt_id': "ID_PAY_SYSTEM_ID_52",
                 'compatible_with': {
-                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'pl doručení na adresu'],
+                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'ppl doručení na adresu'],
                     'price_class': [0, 1]
                 }
             },
@@ -123,7 +124,7 @@ class OrderContext:
                 "en_name": "PayPal",
                 "opt_id": "ID_PAY_SYSTEM_ID_6",
                 'compatible_with': {
-                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'pl doručení na adresu'],
+                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'ppl doručení na adresu'],
                     'price_class': [0, 1]
                 }
             }
@@ -244,13 +245,12 @@ class OrderContext:
         if not self.selected_delivery:
             return None, None
 
-        delivery_name = self.selected_delivery['local_name']
+        delivery_name = self.selected_delivery['en_name']
         price_class = self.sku['price_class']  # 0 = under 70, 1 = over 70
 
         # Shop pickup
-        if delivery_name == 'osobní vyzvednutí':
-            fee = self.fees['shipping']['shop pickup']['any']
-            return fee, None  # Return display string only
+        if delivery_name == 'shop pickup':
+            fee_data = self.fees['shipping'][delivery_name]['any']
         
         # Courier and PPL
         else:
@@ -260,7 +260,7 @@ class OrderContext:
                 tier = 'over_70'
 
             fee_data = self.fees['shipping'][delivery_name][tier]
-            return fee_data['display'], fee_data['amount']
+        return fee_data['display'], fee_data['amount']
 
     def get_expected_payment_fee(self):
         if not self.selected_payment:
@@ -616,55 +616,57 @@ def proceed_to_checkout():
         return False
 
 def select_ppl(order):
+# Separate function for PPL delivery, used in select_delivery_option()
     try:
         print("Selecting PPL delivery method...")
-        # Get PPL option from order context
         ppl_option = order.get_delivery_option_by_name('ppl parcel box')
         if not ppl_option:
             print("✗ PPL parcel box option not found")
             return False, 'ppl parcel box'
         
-        # Use the opt_id
         ppl_element = WebDriverWait(driver, 5).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 
                 f"label[for='{ppl_option['opt_id']}']"))
         )
         ppl_element.click()
         print("PPL delivery selected")
-        time.sleep(1)
+        time.sleep(2)
 
         print("Selecting PPL pickup point...")
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".result__item-title"))
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".result__item"))
         )
-        pickup_points = driver.find_elements(By.CSS_SELECTOR, ".result__item-title")
-        print(f"Found {len(pickup_points)} PPL pickup points")
+        pickup_buttons = driver.find_elements(By.CSS_SELECTOR, ".result__link")
+        print(f"Found {len(pickup_buttons)} PPL pickup points")
 
-        if not pickup_points:
+        if not pickup_buttons:
             print("✗ No PPL pickup points found")
             return False, 'ppl parcel box'
         
         # Choose a random pickup point
-        chosen_point = random.choice(pickup_points)
-        point_name = chosen_point.text
-        print(f"Selecting pickup point: {point_name}")
+        chosen_button = random.choice(pickup_buttons)
 
-        chosen_point.click()
+        try:
+            title_element = chosen_button.find_element(By.CSS_SELECTOR, ".result__item-title")
+            point_name = title_element.text
+            print(f"Selecting pickup point: {point_name}")
+        except:
+            print("Selecting random pickup point")
+
+        chosen_button.click()
         print("Pickup point clicked, waiting for details to load...")
-        time.sleep(1)
+        time.sleep(2)
 
         print("Looking for selection button...")
-        select_button = WebDriverWait(driver, 5).until(
+        select_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Vybrat toto místo')]"))
         )
-        print(f"Button text: '{select_button.text}'")
         select_button.click()
         print("Selection button clicked")
         time.sleep(2)
 
-        # Text on button doesn't change but it turns to green - add verification later 
         print("✓ PPL pickup point selected successfully")
-        return True, 'ppl parcel box'
+        return True, "ppl parcel box"
     
     except Exception as e:
         print(f"✗ Failed to select PPL pickup point: {str(e)}")
@@ -1212,7 +1214,7 @@ def main_cz(email, phone):
         if fee_success:
             print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
         else:
-            print(f"✗Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+            print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
         print("----------END----------")
         time.sleep(10)
