@@ -308,27 +308,12 @@ def extract_price(price_text):
     except ValueError:
         return None
   
-def close_cookie_popup():
-    try:
-        accept_button = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".cky-btn.cky-btn-accept"))
-        )
-        accept_button.click()
-        print("Cookie popup closed")
-        time.sleep(1)
-        return True    
-     
-    except Exception as e:
-        print(f"✗ Error handling cookie popup: {str(e)}")
-        return False
-
+# No cookie popup
 def search_for_sku(sku):
     try:
         print("Navigating to main page...")
         driver.get(website_main)
         time.sleep(3)
-
-        close_cookie_popup()
         
         print("Opening search box...")
         search_box = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "header__search")))
@@ -886,7 +871,6 @@ def verify_order_fee(order):
         # Get expected fee from order context
         expected_display, expected_amount = order.get_expected_total_fee()
         order.summary['expected_fee'] = expected_display
-        print(expected_display)
         
         if expected_display is None:
             print(f"✗ Can't determine expected fee")

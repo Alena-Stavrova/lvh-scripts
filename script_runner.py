@@ -6,7 +6,7 @@ import EU_random_V2 as eu
 #import HU_random_V2 as hu
 import IT_random_V2 as it
 import PL_random_V2 as pl
-#import TR_random_V2 as tr
+import TR_random_V2 as tr
 import US_random_V2 as us
 
 import random
@@ -20,7 +20,7 @@ script_modules = {
     #'HU': hu,
     'IT': it,
     'PL': pl,
-    #'TR': tr,
+    'TR': tr,
     'US': us
     }
 
