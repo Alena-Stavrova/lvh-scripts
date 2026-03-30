@@ -141,21 +141,21 @@ class OrderContext:
                     }
                 },
                 'courier': {
-                    'under_70': {
+                    'under_3000': {
                         'amount': 109,  # Numeric for calculation
                         'display': '109 Kč'
                     },
-                    'over_70': {
+                    'over_3000': {
                         'amount': 0,
                         'display': 'Doprava zdarma'
                     }
                 },
                 'ppl parcel box': {
-                    'under_70': {
+                    'under_3000': {
                         'amount': 109,  
                         'display': '109 Kč'
                     },
-                    'over_70': {
+                    'over_3000': {
                         'amount': 0,
                         'display': 'Doprava zdarma'
                 }
@@ -246,7 +246,7 @@ class OrderContext:
             return None, None
 
         delivery_name = self.selected_delivery['en_name']
-        price_class = self.sku['price_class']  # 0 = under 70, 1 = over 70
+        price_class = self.sku['price_class']  
 
         # Shop pickup
         if delivery_name == 'shop pickup':
@@ -254,48 +254,22 @@ class OrderContext:
         
         # Courier and PPL
         else:
-            if price_class == 0:  # Under 70€
-                tier = 'under_70'
-            else:  # Over 70€
-                tier = 'over_70'
+            if price_class == 0:  
+                tier = 'under_3000'
+            else:  
+                tier = 'over_3000'
 
             fee_data = self.fees['shipping'][delivery_name][tier]
         return fee_data['display'], fee_data['amount']
 
     def get_expected_payment_fee(self):
-        if not self.selected_payment:
-            return None, None
-        
-        is_cash = self.selected_payment.get('is_cash', False)
-        price_class = self.sku['price_class']
-        
-        if is_cash:
-            if price_class == 0:
-                tier = 'under_70'
-            else:
-                tier = 'over_70'
-            
-            fee_data = self.fees['payment']['cash'][tier]
-            return fee_data['display'], fee_data['amount']
-        else:
-            return None, 0  # No payment fee
+        # No payment fees
+        return None, None
 
     def get_expected_total_fee(self):
-        ship_display, ship_amount = self.get_expected_shipping_fee()
-        pay_display, pay_amount = self.get_expected_payment_fee()
-        
-        # Calculate total amount (handle None as 0)
-        ship_amount = ship_amount if ship_amount is not None else 0
-        pay_amount = pay_amount if pay_amount is not None else 0
-        total_amount = ship_amount + pay_amount
-        
-        # Format display string
-        if total_amount == 0:
-            display = 'Doprava zdarma'
-        else:
-            display = f'Kč {total_amount}'
-        
-        return display, total_amount
+        # Just return the shipping fee display string
+        ship_display, _ = self.get_expected_shipping_fee()
+        return ship_display, None
 
     def update_summary(self, **kwargs):
         self.summary.update(kwargs)
@@ -571,7 +545,6 @@ def get_total_price_basket(order):
         price = extract_price(price_text)
         if price is not None:
             order.summary['basket_price'] = price
-            print(order.summary['basket_price'])
             return price
 
         print("✗ Could not find total price on page")
@@ -1002,6 +975,7 @@ def verify_order_fee(order):
         # Get expected fee from order context
         expected_display, expected_amount = order.get_expected_total_fee()
         order.summary['expected_fee'] = expected_display
+        print(expected_display)
         
         if expected_display is None:
             print(f"✗ Can't determine expected fee")
@@ -1060,7 +1034,7 @@ def get_order_number():
             return order_num
                 
         else:
-            print(f"✗ Order number is not in current url")
+            print(f"✗ Order number is not in current url: '{current_url}'")
             return False
         
     except Exception as e:
