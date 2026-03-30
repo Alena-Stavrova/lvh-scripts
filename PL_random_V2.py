@@ -75,7 +75,16 @@ class OrderContext:
             'price_class': None,
             'unavailable': []   # Track unavailable SKUs
         }
-     
+
+        self.delivery_options = [
+            {
+                'local_name': 'inpost paczkomaty',
+                'en_name': 'inpost pickup',
+                'opt_id': 'ID_SHIPPING_METHOD_ID_11'
+                }
+        ]
+
+        """
         self.delivery_options = [
             {
                 'local_name': 'dostawa kurierem',
@@ -95,6 +104,7 @@ class OrderContext:
                 'opt_id': 'ID_SHIPPING_METHOD_ID_11'
                 }
         ]
+        """
 
         self.selected_delivery = None 
             
@@ -602,8 +612,6 @@ def proceed_to_checkout():
 def select_inpost(order):
 # Separate function for InPost delivery
     try:
-        print("Selecting InPost delivery method...")
-        
         # Step 1: Get InPost option from order context
         inpost_option = order.get_delivery_option_by_name('inpost paczkomaty')
         if not inpost_option:
@@ -617,78 +625,64 @@ def select_inpost(order):
         )
         inpost_element.click()
         print("InPost delivery selected")
-        time.sleep(2)  # Wait for the dropdowns to appear
+        time.sleep(3)  # Wait for the dropdowns to appear
     
         # Step 3: Select city using Select2
         print("Selecting city...")
-        
-        # Find and click the city Select2 container
+
+        # Find ALL Select2 containers, then get the one for InPost city
+        # (Appears AFTER the country/city fields, ID: "bx-shipping-inpost-city")
         city_container = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 
-                "span.select2-selection.select2-selection--single"))
+                "#select2-bx-shipping-inpost-city-container"))
         )
         city_container.click()
-        time.sleep(0.5)
-        
-        # Find the search input that appears
-        city_search = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 
-                "input.select2-search__field"))
+        print("City dropdown opened")
+        time.sleep(1)
+
+        # Get all city options directly (search input might be hidden)
+        city_options = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, 
+                ".select2-container--open .select2-results__option"))
         )
         
-        # Choose a random city from a list of Polish cities
-        cities = ["Warszawa", "Kraków", "Gdańsk", "Wrocław", "Poznań", "Łódź", "Katowice"]
-        selected_city = random.choice(cities)
-        print(f"Typing city: {selected_city}")
+        # Filter out any empty or loading options
+        valid_cities = [opt for opt in city_options if opt.text and opt.text.strip()]
         
-        # Clear and type city name
-        city_search.clear()
-        city_search.send_keys(selected_city)
-        time.sleep(1.5)  # Wait for results to filter
+        if not valid_cities:
+            print("  ✗ No city options found")
+            return False, 'inpost'
         
-        # Press Enter to select the first result
-        city_search.send_keys(Keys.ENTER)
-        print(f"✓ City selected: {selected_city}")
-        time.sleep(2)  # Wait for pickup points to load
+        print(f"Found {len(valid_cities)} cities")
 
-       # Step 4: Select pickup point using Select2
+        # Choose a random city
+        chosen_city = random.choice(valid_cities)
+        city_name = chosen_city.text
+        print(f"Selecting city: {city_name}")
+        
+        # Click directly on the option
+        chosen_city.click()
+        print(f"City selected")
+        time.sleep(3)
+
+        # Select pickup point
         print("Selecting pickup point...")
         
-        # Wait for the pickup point dropdown to become available
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 
-                "span.select2-selection.select2-selection--single"))
-        )
-        time.sleep(1)
-        
-        # Find and click the SECOND select2 container (for pickup point)
-        all_select2_containers = driver.find_elements(By.CSS_SELECTOR, 
-            "span.select2-selection.select2-selection--single")
-        
-        if len(all_select2_containers) < 2:
-            print("✗ Could not find pickup point dropdown")
-            return False, 'inpost paczkomaty'
-        
-        point_container = all_select2_containers[1]  # Second one is for pickup point
-        point_container.click()
-        time.sleep(0.5)
-
-        # Find the search input for pickup points
-        point_search = WebDriverWait(driver, 5).until(
+        point_container = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 
-                "input.select2-search__field"))
+                "#select2-bx-shipping-inpost-point-container"))
+        )
+        point_container.click()
+        print("Pickup point dropdown opened")
+        time.sleep(2)
+        
+        # Get all pickup point options
+        point_options = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, 
+                ".select2-container--open .select2-results__option"))
         )
         
-        # Press Enter to get options
-        point_search.send_keys(Keys.ENTER)
-        time.sleep(1.5)
-        
-        # Get all available pickup points
-        pickup_points = driver.find_elements(By.CSS_SELECTOR, 
-            ".select2-results__option")
-        
-        # Filter out any loading or empty options
-        valid_points = [p for p in pickup_points if p.text]
+        valid_points = [p for p in point_options if p.text and p.text.strip()]
         
         if not valid_points:
             print("✗ No pickup points found")
@@ -696,16 +690,10 @@ def select_inpost(order):
         
         print(f"Found {len(valid_points)} pickup points")
         
-        # Choose a random pickup point
         chosen_point = random.choice(valid_points)
-        point_name = chosen_point.text
-        print(f"Selecting pickup point: {point_name}")
-
-        # Scroll and click
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", chosen_point)
-        time.sleep(0.5)
+        print(f"Selecting pickup point: {chosen_point.text[:50]}")
         chosen_point.click()
-        print(f"✓ Pickup point selected")
+        print(f"Pickup point selected")
         time.sleep(2)
 
         print("✓ InPost pickup point selected successfully")
@@ -713,8 +701,42 @@ def select_inpost(order):
     
     except Exception as e:
         print(f"✗ Failed to select InPost: {str(e)}")
+        traceback.print_exc()
         take_screenshot("inpost_selection_error")
         return False, "inpost paczkomaty"
+
+# Use this version to test InPost delivery only
+"""
+def select_delivery_option(order):
+    try:
+        delivery_options = order.delivery_options
+        selected = random.choice(delivery_options)
+
+        # Update order context
+        order.selected_delivery = selected
+
+        selected_name = selected['local_name']
+        selected_id = selected['opt_id']
+        print(f"Selected: {selected_name}")
+        
+        # Get default delivery from order context
+        default = order.get_default_delivery() # Courier
+        default_name = default['local_name'] if default else None
+        
+        # Only interact with UI if not default
+    
+        if selected_name == 'inpost paczkomaty':
+            succcess, name = select_inpost(order)
+            return succcess, name
+        else:
+            print(f"Something's wrong")
+            return False, selected_name
+
+    except Exception as e:
+        print(f"✗ Error in payment selection process: {str(e)}")
+        take_screenshot("payment_option_error")
+        return False, "Error"
+"""
 
 def select_delivery_option(order):
     try:
@@ -766,6 +788,7 @@ def select_delivery_option(order):
         else:
             print(f"Using default delivery option ({default_name}), no action needed")
             return True, selected_name
+            
             
     except Exception as e:
         print(f"✗ Error in delivery selection process: {str(e)}")
