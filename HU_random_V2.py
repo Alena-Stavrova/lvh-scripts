@@ -560,7 +560,6 @@ def get_total_price_basket(order):
         price = extract_price(price_text)
         if price is not None:
             order.summary['basket_price'] = price
-            print(order.summary['basket_price'])
             return price
 
         print("✗ Could not find total price on page")
