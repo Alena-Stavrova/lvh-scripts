@@ -1,4 +1,4 @@
-#import BG_random_V2 as bg
+import BG_random_V2 as bg
 import CZ_random_V2 as cz
 import DE_random_V2 as de
 import ES_random_V2 as es
@@ -12,7 +12,7 @@ import US_random_V2 as us
 import random
 
 script_modules = {
-    #'BG': bg,
+    'BG': bg,
     'CZ': cz,
     'DE': de,
     'ES': es,
