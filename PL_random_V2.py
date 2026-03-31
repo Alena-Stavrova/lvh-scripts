@@ -1269,7 +1269,7 @@ def main_pl(email, phone):
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
-        print(f"Item price: €{order.summary['basket_price']}")
+        print(f"Item price: {order.summary['basket_price']} zł")
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
 
