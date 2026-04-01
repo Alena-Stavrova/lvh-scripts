@@ -21,8 +21,8 @@ This script requires ChromeDriver to control the Chrome browser.
 1. **Check your Chrome version**: Open Chrome, go to `chrome://settings/help`
 2. **Download ChromeDriver**: Visit [https://chromedriver.chromium.org/downloads](https://chromedriver.chromium.org/downloads) and download the version matching your Chrome
 3. **Place ChromeDriver**: 
-   - Either put `chromedriver.exe` in a folder that's in your system PATH
-   - Or place it in the same folder as the Python scripts
+   * Either put `chromedriver.exe` in a folder that's in your system PATH
+   * Or place it in the same folder as the Python scripts
 
 **Note**: The scripts assume ChromeDriver is accessible via PATH. If you get a "WebDriver not found" error, you may need to specify the path manually.
 
