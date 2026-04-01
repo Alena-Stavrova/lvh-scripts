@@ -1,10 +1,5 @@
-# Levenhuk Order Automation Suite
-
-![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
-![Selenium](https://img.shields.io/badge/selenium-4.x-green)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
-
-Scripts for automated orders for Levenhuk websites, countries covered:
+# Levenhuk Automated Orders Suite
+Countries:
 
 BG <img width="16" height="11" alt="BG flag" src="https://bg.levenhuk.com/upload/uf/914/ailuas7wc7b4u7esam52hmkb9k92qary/BG.svg"> |  CZ <img width="16" height="11" alt="CZ flag" src="https://cz.levenhuk.com/upload/uf/aae/3xkmguzh9wbv2rf1tihnbrwqe2g7opub/CZ.svg"> | DE <img width="16" height="11" alt="DE flag" src="https://de.levenhuk.com/upload/uf/c3d/0g1sijegx0japf8h3xrmfwe38yhzncs4/DE.svg"> | ES <img width="16" height="11" alt="ES flag" src="https://es.levenhuk.com/upload/uf/240/7xfauisyvrj1lvq4xo6ez8edulm4jx1b/ES.svg" /> | EU <img width="16" height="11" alt="EU flag" src="https://eu.levenhuk.com/upload/uf/3c6/mjgpqapw7zairhbqam8ti91z8koanis2/EU.svg" /> | HU <img width="16" height="11" alt="HU flag" src="https://hu.levenhuk.com/upload/uf/fd6/ff08i0019151736dcl9fx7y8gn4pizdv/HU.svg" /> | IT <img width="16" height="11" alt="IT flag" src="https://it.levenhuk.com/upload/uf/902/r191twfwccz3c5yrbdkt32r19fi4trzz/IT.svg"> | PL <img width="16" height="11" alt="PL flag" src="https://pl.levenhuk.com/upload/uf/004/b9fnsrp8csujk4mh0bnf0a3ykokyzm7d/PL.svg"> | TR <img width="16" height="11" alt="TR flag" src="https://tr.levenhuk.com/upload/uf/bf4/q5iq0vvtkckdky2tv0yw9zi7a4eiv1k7/TR.svg"/> | US <img width="16" height="11" alt="US flag" src="https://levenhuk.com/upload/uf/414/s7dkq0gx4i2sba9e0zquy5doxzy1qhy3/USA.svg"/>  (10 / 10)
 
