@@ -1,14 +1,13 @@
-import BG_random_V2 as bg
-#import CZ_random_V2 as cz
+import BG_random_V3 as bg
 import CZ_random_V3 as cz
-import DE_random_V2 as de
-import ES_random_V2 as es
-import EU_random_V2 as eu
-import HU_random_V2 as hu
-import IT_random_V2 as it
-import PL_random_V2 as pl
-import TR_random_V2 as tr
-import US_random_V2 as us
+import DE_random_V3 as de
+import ES_random_V3 as es
+import EU_random_V3 as eu
+import HU_random_V3 as hu
+import IT_random_V3 as it
+import PL_random_V3 as pl
+import TR_random_V3 as tr
+import US_random_V3 as us
 
 import random
 
@@ -25,7 +24,7 @@ script_modules = {
     'US': us
     }
 
-scripts_string = input('Type countries space-separated, like "ES EU PL" or "8" to run ALL the scripts: ')
+scripts_string = input('Type countries space-separated, like "ES EU PL" or "10" to run ALL the scripts: ')
 if scripts_string == "8":
     scripts_to_run = ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
 else: 
