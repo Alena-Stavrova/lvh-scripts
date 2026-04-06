@@ -161,9 +161,9 @@ class OrderContextUS(ParentContext):
 
         self.sku_lists = {
             'price_classes': {
-                0: [83836, 69737, 74830, 78663, 29276, 
+                0: [83836, 69737, 74830, 79574, 29276, 
                     84558, 70818, 72111, 78666, 72098] 
-                #79054 article doesn't exist, test for "not found"
+                #79054, 78663 articles don't exist, "not found" doesn't work properly
             }
         }
 

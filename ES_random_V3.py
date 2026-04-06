@@ -216,7 +216,7 @@ class OrderContextES(ParentContext):
                     'is_cash': True,
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
-                        'price_class': [0, 1, 2]
+                        'price_class': [0, 1]
                     }
                 },
                 {
@@ -241,7 +241,7 @@ class OrderContextES(ParentContext):
     
         self.fees = {
                 'shipping': {
-                    'standard': {
+                    'courier': {
                         'under_70': {
                             'amount': 8,  # Numeric for calculation
                             'display': '8 €'
@@ -257,12 +257,8 @@ class OrderContextES(ParentContext):
                     'under_120': {
                         'amount': 8,
                         'display': '8 €'
-                    },
-                    'over_120': {
-                        'amount': None,
-                        'display': 'TBD'
                     }
-                },
+                }
             }
             }
 
@@ -278,7 +274,8 @@ class OrderContextES(ParentContext):
         else:  # Over 70€
             tier = 'over_70'
 
-        return self.fees['shipping']['standard'][tier]['display'], None # Return display string only
+        fee_data = self.fees['shipping']['courier'][tier]
+        return fee_data['display'], fee_data['amount']
     
     def get_expected_payment_fee(self):
         if not self.selected_payment:
@@ -290,8 +287,7 @@ class OrderContextES(ParentContext):
         if is_cash:
             if price_class == 0 or price_class == 1:
                 tier = 'under_120'
-            else:
-                tier = 'over_120'
+            # Won't show for 120+ EU items
             
             fee_data = self.fees['payment']['cash'][tier]
             return fee_data['display'], fee_data['amount']
@@ -315,7 +311,7 @@ class OrderContextES(ParentContext):
         if total_amount == 0:
             display = 'Envío gratuito'
         else:
-            display = f'€{total_amount}'
+            display = f'{total_amount} €'
         
         return display, total_amount
 
@@ -590,7 +586,6 @@ def get_total_price_basket(order):
         price = extract_price(price_text)
         if price is not None:
             order.summary['basket_price'] = price
-            print(order.summary['basket_price'])
             return price              
              
         print("✗ Could not find total price on page")

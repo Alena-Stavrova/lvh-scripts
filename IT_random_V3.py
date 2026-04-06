@@ -587,7 +587,6 @@ def get_total_price_basket(order):
         price = extract_price(price_text)
         if price is not None:
             order.summary['basket_price'] = price
-            print(order.summary['basket_price'])
             return price
 
         print("✗ Could not find total price on page")
@@ -766,7 +765,7 @@ def fill_order_form(user_email, test_phone):
         ship_to = choose_address() #is a dictionary
         country_name = ship_to['country']
         city_name = ship_to['city'] 
-        print(f"Chosen address in: {str(country_name)}, {str(ship_to['city'])}")
+        print(f"Chosen address in: {country_name}, {city_name}")
         
         # Wait for the form to be present
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(

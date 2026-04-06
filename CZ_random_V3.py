@@ -718,7 +718,6 @@ def select_payment_option(order):
             return False, None
         
         # Separate real (clickable) from virtual (no click needed)
-        # No virtual options, but left for consistency
         real_options = [opt for opt in available_options if not opt.get('is_virtual', False)]
         virtual_options = [opt for opt in available_options if opt.get('is_virtual', False)]
 

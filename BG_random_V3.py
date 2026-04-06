@@ -378,7 +378,7 @@ def is_item_available(order):
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
         # Check language file for the translations: out of stock, discontinued, coming soon
-        unavailable_indicators = ["nicht auf lager", "nicht mehr erhältlich", "demnächst verfügbar"]
+        unavailable_indicators = ['няма в наличност', 'прекратено производство', 'очаквайте скоро']
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:
