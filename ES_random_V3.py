@@ -260,7 +260,7 @@ class OrderContextES(ParentContext):
                     }
                 }
             }
-            }
+        }
 
     def get_expected_shipping_fee(self):
         if not self.selected_delivery:

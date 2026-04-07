@@ -943,15 +943,6 @@ def verify_order_fee(order):
             print(f"✗ Can't determine expected fee")
             return False, actual_fee
         
-        # Special case: "DA DEFINIRE" (TBD)
-        if expected_display == 'DA DEFINIRE':
-            if actual_fee == 'DA DEFINIRE':
-                print(f"✓ Fee correctly marked as 'DA DEFINIRE'")
-                return True, actual_fee
-            else:
-                print(f"✗ Expected 'DA DEFINIRE', got '{actual_fee}'")
-                return False, actual_fee
-        
         # Compare display strings
         if actual_fee == expected_display:
             print(f"✓ Fee verified: {actual_fee}")
