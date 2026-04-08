@@ -225,21 +225,21 @@ class OrderContextPL(ParentContext):
                     }
                 },
                 'courier': {
-                    'under_300': {
+                    'under_315': {
                         'amount': 15,  # Numeric for calculation
                         'display': '15 zł'
                     },
-                    'over_300': {
+                    'over_315': {
                         'amount': 0,
                         'display': 'Darmowa dostawa'
                     }
                 },
                 'inpost pickup': {
-                    'under_300': {
+                    'under_315': {
                         'amount': 15,  
                         'display': '15 zł'
                     },
-                    'over_300': {
+                    'over_315': {
                         'amount': 0,
                         'display': 'Darmowa dostawa'
                 }
@@ -261,9 +261,9 @@ class OrderContextPL(ParentContext):
         # Courier and InPost
         else:
             if price_class == 0:  
-                tier = 'under_300'
+                tier = 'under_315'
             else:  
-                tier = 'over_300'
+                tier = 'over_315'
 
             fee_data = self.fees['shipping'][delivery_name][tier]
         return fee_data['display'], fee_data['amount']
