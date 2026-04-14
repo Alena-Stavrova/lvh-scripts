@@ -24,9 +24,28 @@ script_modules = {
     'US': us
     }
 
-scripts_string = input('Type countries space-separated, like "ES EU PL" or "10" to run ALL the scripts: ')
-if scripts_string == "8":
-    scripts_to_run = ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
+full_script_list = ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
+
+# ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
+# ['HU', 'BG']
+def list_substraction(list_1, list_2):
+    for i in list_2:
+        list_1.remove(i)
+    new_list = list_1
+    return new_list
+
+print("Type countries space-separated, like 'ES EU PL'")
+print("Or type '10' to run ALL scripts")
+print("Or type '10-HU DE' to exclude 1+ script (HU DE) and run all the others")
+scripts_string = input("Enter your choice: ")
+
+if scripts_string == "10":
+    scripts_to_run = full_script_list
+elif "10-" in scripts_string:
+    # Remove 8 and minus sign
+    removed_scripts = scripts_string[3:].upper().split()
+    scripts_to_run = list_substraction(full_script_list, removed_scripts)
+    print('Running: ' + ' '.join(scripts_to_run))
 else: 
     scripts_to_run = scripts_string.upper().split() # is a list
 

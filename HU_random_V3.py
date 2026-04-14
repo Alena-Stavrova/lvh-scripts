@@ -165,7 +165,8 @@ class OrderContextHU(ParentContext):
                 1: [72481, 70241, 67699, 72100, 84553]  # 50,000+ FL
             }
         }
-     
+
+        """
         self.delivery_options = [
             {            
                 'local_name': 'futárszolgálatos szállítás',
@@ -177,6 +178,16 @@ class OrderContextHU(ParentContext):
                 'local_name': 'átvevőponton történő átvétel',
                 'en_name': 'shop pickup',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_14'
+                }
+            ]
+        """
+        
+        self.delivery_options = [
+            {            
+                'local_name': 'futárszolgálatos szállítás',
+                'en_name': 'courier',
+                'opt_id': 'ID_SHIPPING_METHOD_ID_13',
+                'is_default': True
                 }
             ]
 
@@ -302,7 +313,7 @@ class OrderContextHU(ParentContext):
 # Choose random sku, return a string and int price class
 def choose_sku(order):
     # For IT price classes are only relevant for shipping costs
-    price_classes_to_try = [0, 1]
+    price_classes_to_try = [0]
     random.shuffle(price_classes_to_try) 
     
     for price_class in price_classes_to_try:
