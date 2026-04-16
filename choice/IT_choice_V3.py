@@ -65,6 +65,8 @@ class ParentContext:
         self.sku = {
             'selected': None,
             'price_class': None,
+            # No delivery/payment options requiring certain price classes 
+            'price_class_type': 'flexible',  
             'unavailable': []   # Track unavailable SKUs
         }
 
@@ -148,7 +150,7 @@ class ParentContext:
         for option in self.payment_options:
             if option.get('is_cash', False):
                 return option
-        return None
+        return None            
         
     def update_summary(self, **kwargs):
         self.summary.update(kwargs)
@@ -236,8 +238,55 @@ class OrderContextIT(ParentContext):
                         'display': 'Spedizione gratuita'
                     }
                 }
-            },
+            },    
         }
+    
+    def get_delivery_option(self):
+        while True:
+            try:
+                start = 1
+                options_list = []
+                print('Delivery options: ')
+                for i in range(0, len(self.delivery_options)):
+                    option_local_name = self.delivery_options[i]['local_name']
+                    option_en_name = self.delivery_options[i]['en_name']
+                    print(f'{start} = {option_local_name} ({option_en_name})')
+                    options_list.append(start)
+                    start += 1
+        
+                selected_delivery = int(input("Enter your option: "))
+                if selected_delivery in options_list:
+                    self.selected_delivery = self.delivery_options[selected_delivery-1]
+                    break
+                else: 
+                    print(f"✗ Please enter a number between {options_list[0]} and {options_list[-1]}.") 
+            
+            except ValueError:
+                print("✗ Please enter a valid number.")
+    
+    def get_payment_option(self):
+        while True:
+            try:
+                start = 1
+                options_list = []
+                available_options = self.get_available_payment_options()
+                print('Payment options: ')
+                for i in range(0, len(available_options)):
+                    option_local_name = available_options[i]['local_name']
+                    option_en_name = available_options[i]['en_name']
+                    print(f'{start} = {option_local_name} ({option_en_name})')
+                    options_list.append(start)
+                    start += 1
+        
+                selected_payment = int(input("Enter your option: "))
+                if selected_payment in options_list:
+                    self.selected_payment = available_options[selected_payment-1]
+                    break
+                else: 
+                    print(f"✗ Please enter a number between {options_list[0]} and {options_list[-1]}.") 
+            
+            except ValueError:
+                print("✗ Please enter a valid number.")
 
     def get_expected_shipping_fee(self):
         if not self.selected_delivery:
@@ -258,6 +307,7 @@ class OrderContextIT(ParentContext):
             tier = 'over_70'
 
         fee_data = self.fees['shipping']['standard'][tier]
+
         return fee_data['display'], fee_data['amount']
 
     def get_expected_payment_fee(self):
@@ -285,11 +335,19 @@ class OrderContextIT(ParentContext):
         
         return display, total_amount
 
+
 # Choose random sku, return a string and int price class
 def choose_sku(order):
-    # For IT price classes are only relevant for shipping costs
-    price_classes_to_try = [0, 1]
-    random.shuffle(price_classes_to_try) 
+    price_classes_to_try = []
+    price_class_type = order.sku['price_class_type']
+    if price_class_type == 'flexible':
+        price_classes_to_try += [0, 1]
+        random.shuffle(price_classes_to_try)
+    elif price_class_type == 'fixed':
+        price_classes_to_try.append(order.sku['price_class'])
+    else:
+        print(f'Price class type is {price_class_type}')
+        return False
     
     for price_class in price_classes_to_try:
         sku_list = order.get_sku_list(price_class)
@@ -600,17 +658,12 @@ def proceed_to_checkout():
         take_screenshot("checkout_error")
         return False
     
-def select_delivery_option(order):
+def click_delivery_option(order):
     try:
-        delivery_options = order.delivery_options
-        selected = random.choice(delivery_options)
-
-        # Update order context
-        order.selected_delivery = selected
+        selected = order.selected_delivery
 
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
-        print(f"Selected: {selected_name}")
         
         # Get default delivery from order context
         default = order.get_default_delivery()
@@ -638,97 +691,70 @@ def select_delivery_option(order):
                 time.sleep(1)
                 
                 print(f"✓ Option clicked: {selected_name}")
-                return True, selected_name
+                return True
                 
             except Exception as e:
                 print(f"✗ Failed to click delivery option {selected_name}: {str(e)}")
-                return False, selected_name
+                return False
         else:
             print(f"Using default delivery option ({default_name}), no action needed")
-            return True, selected_name
+            return True
             
     except Exception as e:
-        print(f"✗ Error in delivery selection process: {str(e)}")
+        print(f"✗ Error when clicking the delivery option: {str(e)}")
         take_screenshot("delivery_option_error")
-        return False, "Error"
+        return False
 
-def select_payment_option(order):
+def click_payment_option(order):
     try:
-        print("Selecting payment option...")
-        available_options = order.get_available_payment_options()
-        
-        if not available_options:
-            print("✗ No payment options available for this delivery")
-            return False, None
-        
-        # Separate real (clickable) from virtual (no click needed)
-        # No virtual options, but left for consistency
-        real_options = [opt for opt in available_options if not opt.get('is_virtual', False)]
-        virtual_options = [opt for opt in available_options if opt.get('is_virtual', False)]
+        selected = order.selected_payment
 
-        # Choose appropriate option
-        if real_options:
-            selected = random.choice(real_options)
-            need_click = True
-            print(f"Selected real option: {selected['local_name']}")
-        elif virtual_options:
-            selected = virtual_options[0]
-            need_click = False
-            print(f"Selected virtual option: {selected['local_name']}")
-        else:
-            print("✗ No payment options available")
-            return False, None
-
-        # Update order context
-        order.selected_payment = selected
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
 
-        # Get default payment
+        # Get default payment from order context
         default = order.get_default_payment()
         default_name = default['local_name'] if default else None
         
-        # Only interact with UI if real & not default
-        if need_click and selected_name != default_name:
+        # Only interact with UI if not default
+        if selected_name != default_name:
             try:
-                payment_label = WebDriverWait(driver, 10).until(
+                # Find and click the payment option label
+                payment_label = wait.until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 
                         f"label[for='{selected_id}']"))
                 )
                 print("Found payment label, attempting to click...")
                 
+                # Scroll to the label
                 driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});",
+                    "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", 
                     payment_label
                 )
                 time.sleep(0.5)
+                
+                # CRITICAL: Re-find the element AFTER scrolling, before clicking
+                payment_label = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 
+                        f"label[for='{selected_id}']"))
+                )
                 payment_label.click()
                 time.sleep(1)
                 
-                print(f"✓ Successfully selected {selected_name}")
-                return True, selected_name
+                print(f"✓ Option clicked: {selected_name}")
+                return True
                 
             except Exception as e:
-                # Fallback: try JavaScript click if normal click fails
-                try:
-                    print("Attempting JavaScript click fallback...")
-                    driver.execute_script(
-                        f"document.querySelector('label[for=\"{selected_id}\"]').click();"
-                    )
-                    time.sleep(1)
-                    print(f"✓ Successfully selected {selected_name} via JavaScript")
-                    return True, selected_name
-                except:
-                    print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
-                    return False, selected_name
+                print(f"✗ Failed to click payment option {selected_name}: {str(e)}")
+                return False
         else:
-            print(f"Using {selected_name} (virtual or default), no action needed")
-            return True, selected_name
+            print(f"Using default payment option ({default_name}), no action needed")
+            return True
             
     except Exception as e:
-        print(f"✗ Error in payment selection process: {str(e)}")
+        print(f"✗ Error when clicking the payment option: {str(e)}")
         take_screenshot("payment_option_error")
-        return False, "Error"       
+        return False     
                                                                                                     
 def fill_order_form(user_email, test_phone):
     try:
@@ -1011,6 +1037,8 @@ def main_it(email, phone):
         test_phone = phone
 
         order = OrderContextIT()
+        order.get_delivery_option()
+        order.get_payment_option()
 
         print("\nLaunching browser...")
         driver = create_optimized_driver()
@@ -1078,23 +1106,15 @@ def main_it(email, phone):
                                 fill_form_success = fill_order_form(user_email, test_phone)
                                 
                                 if fill_form_success:
-                                    step_counter.print_step("Selecting delivery option")
-                                    delivery_success, delivery = select_delivery_option(order)
+                                    step_counter.print_step("Clicking delivery option")
+                                    delivery_success = click_delivery_option(order)
                                     if delivery_success:
-                                        print(f"Delivery selected: {delivery}")
-                                        order.summary['delivery_option'] = delivery
-                                    else:
-                                        print("✗ Delivery selection failed, aborting")
-                                        #return
-                                        sys.exit(1)
-
-                                    step_counter.print_step("Selecting payment option")
-                                    payment_success, payment = select_payment_option(order)
+                                        order.summary['delivery_option'] = order.selected_delivery['local_name']
+                                    
+                                    step_counter.print_step("Clicking payment option")
+                                    payment_success = click_payment_option(order)
                                     if payment_success:
-                                        print(f"Payment selected: {payment}")
-                                        order.summary['payment_option'] = payment
-                                    else:
-                                        print("✗ Payment selection failed, but continuing with order process")
+                                        order.summary['payment_option'] = order.selected_payment['local_name']
                                   
                                     time.sleep(2)
                                     step_counter.print_step("Verifying delivery and payment fees...")
@@ -1145,7 +1165,7 @@ def main_it(email, phone):
         if fee_success:
             print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
         else:
-            print(f"✗Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+            print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
         print("----------END----------")
         time.sleep(10)
