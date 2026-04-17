@@ -1039,6 +1039,8 @@ def main_it(email, phone):
         order = OrderContextIT()
         order.get_delivery_option()
         order.get_payment_option()
+        print(f'Chosen delivery: {order.selected_delivery['local_name']}')
+        print(f'Chosen payment: {order.selected_payment['local_name']}')
 
         print("\nLaunching browser...")
         driver = create_optimized_driver()

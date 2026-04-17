@@ -1,6 +1,6 @@
 #import BG_random_V3 as bg
 #import CZ_random_V3 as cz
-#import DE_random_V3 as de
+import DE_choice_V3 as de
 #import ES_random_V3 as es
 #import EU_random_V3 as eu
 import HU_choice_V3 as hu
@@ -14,7 +14,7 @@ import random
 script_modules = {
     #'BG': bg,
     #'CZ': cz,
-    #'DE': de,
+    'DE': de,
     #'ES': es,
     #'EU': eu,
     'HU': hu,
