@@ -24,52 +24,34 @@ script_modules = {
     #'US': us
     }
 
-full_script_list = ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
-
-# ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
-# ['HU', 'BG']
-def list_substraction(list_1, list_2):
-    for i in list_2:
-        list_1.remove(i)
-    new_list = list_1
-    return new_list
-
-print("Type countries space-separated, like 'ES EU PL'")
-print("Or type '10' to run ALL scripts")
-print("Or type '10-HU DE' to exclude 1+ script (HU DE) and run all the others")
+print("Type countries and the number of orders like so: 'ES:1 DE:2'")
+print("The example above will make 1 order on ES website and 2 orders on DE website")
 scripts_string = input("Enter your choice: ")
 
-if scripts_string == "10":
-    scripts_to_run = full_script_list
-elif "10-" in scripts_string:
-    # Remove 8 and minus sign
-    removed_scripts = scripts_string[3:].upper().split()
-    scripts_to_run = list_substraction(full_script_list, removed_scripts)
-    print('Running: ' + ' '.join(scripts_to_run))
-else: 
-    scripts_to_run = scripts_string.upper().split() # is a list
-
-# Shuffles the list randomly to run scripts in diff order
-random.shuffle(scripts_to_run)
+scripts_to_run = {i.split(":")[0]: int(i.split(":")[1]) for i in scripts_string.split(" ")}
 
 # Initialize test data
 test_email = input("Enter email: ")
 test_phone = "+79444444444"
 second_email = None
-
-if len(scripts_to_run) > 5:
-    second_email = input('More than 5 scripts, please type in additional email: ')
-
 script_count = 0
-for script in scripts_to_run:
-    module = script_modules[script]
-    main_function = getattr(module, f"main_{script.lower()}")
 
-    current_email = test_email if script_count < 5 else second_email
+#{'DE':4, 'HU':2}
+
+for k in scripts_to_run:
+    module = script_modules[k]
+    run_num = scripts_to_run[k]
+    for j in range(run_num):        
+        main_function = getattr(module, f"main_{k.lower()}")
     
-    print(f"\n{'='*60}")
-    print(f"Running {script} script with email: {current_email}")
-    print(f"{'='*60}")
+        print(f"\n{'='*60}")
+        print(f"Running {k} script with email: {test_email}")
+        print(f"{'='*60}")
     
-    main_function(current_email, test_phone)
-    script_count += 1
+        main_function(test_email, test_phone)
+        script_count += 1
+        if script_count == 5:
+            print(f"\n{'='*60}")
+            test_email = input("Made 5 orders, please enter NEW email: ")
+            print(f"\n{'='*60}")
+            script_count = 0

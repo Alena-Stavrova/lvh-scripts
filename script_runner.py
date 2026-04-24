@@ -64,7 +64,6 @@ script_count = 0
 for script in scripts_to_run:
     module = script_modules[script]
     main_function = getattr(module, f"main_{script.lower()}")
-
     current_email = test_email if script_count < 5 else second_email
     
     print(f"\n{'='*60}")

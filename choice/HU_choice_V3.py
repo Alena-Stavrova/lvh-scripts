@@ -173,7 +173,7 @@ class OrderContextHU(ParentContext):
                 'local_name': 'futárszolgálatos szállítás',
                 'en_name': 'courier',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_13',
-                'is_default': True
+                'is_default': True,
                 },
             {
                 'local_name': 'átvevőponton történő átvétel',

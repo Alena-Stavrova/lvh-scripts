@@ -169,53 +169,47 @@ class OrderContextEU(ParentContext):
 
         self.delivery_options = [
                 {            
-                    "local_name": "courier",
-                    "en_name": "courier",
-                    "opt_id": "ID_SHIPPING_METHOD_ID_4",
+                    'local_name': 'courier',
+                    'en_name': 'courier',
+                    'opt_id': 'ID_SHIPPING_METHOD_ID_4',
                     'is_default': True
                     }
                 ]
     
         self.payment_options = [
                 {
-                    "local_name": "Bank transfer",
-                    "en_name": "Bank transfer",
-                    "opt_id": "ID_PAY_SYSTEM_ID_2",
+                    'local_name': 'Bank transfer',
+                    'en_name': 'Bank transfer',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_2',
                     'is_default': True,
-                    'is_cash': False,
                     'compatible_with': {
                         'delivery': 'courier',
                         'price_class': [1]
                     }    
                 },
                 {
-                    "local_name": "Credit/debit card",
-                    "en_name": "Credit/debit card",
-                    "opt_id": "ID_PAY_SYSTEM_ID_50",
-                    'is_default': False,
-                    'is_cash': False,
+                    'local_name': 'Credit/debit card',
+                    'en_name': 'Credit/debit card',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_50',
                     'compatible_with': {
                         'delivery': 'courier',
                         'price_class': [1]
                     }
                 },
                 {
-                    "local_name": "PayPal",
-                    "en_name": "PayPal",
-                    "opt_id": "ID_PAY_SYSTEM_ID_5",
-                    'is_default': False,
-                    'is_cash': False,
+                    'local_name': 'PayPal',
+                    'en_name': 'PayPal',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_5',
                     'compatible_with': {
                         'delivery': 'courier',
                         'price_class': [1]
                     }
                 },
                 {
-                    "local_name": "TBD",   # Actually no name displayed
-                    "en_name": "TBD",
-                    "opt_id": None,
+                    'local_name': 'TBD',   # Actually no name displayed
+                    'en_name': 'TBD',
+                    'opt_id': None,
                     'is_default': True,
-                    'is_cash': False,
                     'is_virtual': True,    # Virtual = no UI element, but should be tracked for summary
                     'compatible_with': {
                         'delivery': 'courier',
