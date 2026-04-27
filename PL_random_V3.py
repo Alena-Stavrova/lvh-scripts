@@ -645,7 +645,7 @@ def select_inpost(order):
         
         if not valid_cities:
             print("  ✗ No city options found")
-            return False, 'inpost'
+            return False, 'inpost paczkomaty'
         
         print(f"Found {len(valid_cities)} cities")
 
@@ -691,13 +691,13 @@ def select_inpost(order):
         time.sleep(2)
 
         print("✓ InPost pickup point selected successfully")
-        return True, "inpost paczkomaty"
+        return True, 'inpost paczkomaty'
     
     except Exception as e:
         print(f"✗ Failed to select InPost: {str(e)}")
         traceback.print_exc()
         take_screenshot("inpost_selection_error")
-        return False, "inpost paczkomaty"
+        return False, 'inpost paczkomaty'
 
 # Use this version to test InPost delivery only
 """
