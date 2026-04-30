@@ -167,7 +167,7 @@ class OrderContextCZ(ParentContext):
         
         self.delivery_options = [
             {
-                'local_name': 'osobní vyzvednutí',
+                'local_name': 'vyzvednutí',
                 'en_name': 'shop pickup',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_8',
                 'is_default': True
@@ -178,7 +178,7 @@ class OrderContextCZ(ParentContext):
                 'opt_id': 'ID_SHIPPING_METHOD_ID_26'
                 },      
             {
-                'local_name': 'ppl doručení na adresu',
+                'local_name': 'doručení kurýrem',
                 'en_name': 'courier',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_5'
                 }
@@ -192,7 +192,7 @@ class OrderContextCZ(ParentContext):
                 'is_default': True,
                 'is_cash': True,
                 'compatible_with': {
-                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'ppl doručení na adresu'],
+                    'delivery':['vyzvednutí', 'ppl parcel box', 'doručení kurýrem'],
                     'price_class': [0, 1]
                 }
             },
@@ -201,16 +201,16 @@ class OrderContextCZ(ParentContext):
                 'en_name': 'credit card',
                 'opt_id': "ID_PAY_SYSTEM_ID_52",
                 'compatible_with': {
-                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'ppl doručení na adresu'],
+                    'delivery':['vyzvednutí', 'ppl parcel box', 'doručení kurýrem'],
                     'price_class': [0, 1]
                 }
             },
             {
                 'local_name': 'paypal',
-                'en_name': 'PayPal',
+                'en_name': 'paypal',
                 'opt_id': 'ID_PAY_SYSTEM_ID_6',
                 'compatible_with': {
-                    'delivery':['osobní vyzvednutí', 'ppl parcel box', 'ppl doručení na adresu'],
+                    'delivery':['vyzvednutí', 'ppl parcel box', 'doručení kurýrem'],
                     'price_class': [0, 1]
                 }
             }

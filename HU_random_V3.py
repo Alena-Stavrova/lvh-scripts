@@ -183,7 +183,7 @@ class OrderContextHU(ParentContext):
         self.payment_options = [
             {
                 'local_name': 'banki átutalás',
-                'en_name': 'Bank transfer',
+                'en_name': 'bank transfer',
                 'opt_id': 'ID_PAY_SYSTEM_ID_32',
                 'is_default': True,
                 'compatible_with': {
@@ -193,7 +193,7 @@ class OrderContextHU(ParentContext):
             },
             {
                 'local_name': 'utánvétes fizetés',
-                'en_name': 'Cash on delivery',
+                'en_name': 'cash on delivery',
                 'opt_id': 'ID_PAY_SYSTEM_ID_31',
                 'is_cash': True,
                 'compatible_with': {
@@ -203,7 +203,7 @@ class OrderContextHU(ParentContext):
             },
             {
                 'local_name': 'paypal',
-                'en_name': 'PayPal',
+                'en_name': 'paypal',
                 'opt_id': 'ID_PAY_SYSTEM_ID_25',
                 'compatible_with': {
                     'delivery':['futárszolgálatos szállítás', 'átvevőponton történő átvétel'],
@@ -250,10 +250,10 @@ class OrderContextHU(ParentContext):
         if not self.selected_delivery:
             return None, None
 
-        delivery_name = self.selected_delivery['local_name']
+        delivery_name = self.selected_delivery['en_name']
         price_class = self.sku['price_class'] 
 
-        if delivery_name == 'átvevőponton történő átvétel':
+        if delivery_name == 'shop pickup':
             fee = self.fees['shipping']['shop pickup']['any']
             return fee, None  # Return display string only
         
@@ -299,7 +299,7 @@ class OrderContextHU(ParentContext):
 # Choose random sku, return a string and int price class
 def choose_sku(order):
     # For IT price classes are only relevant for shipping costs
-    price_classes_to_try = [0, 1]
+    price_classes_to_try = [0]
     random.shuffle(price_classes_to_try) 
     
     for price_class in price_classes_to_try:
@@ -429,7 +429,7 @@ def is_item_available(order):
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
         # Check language file for the translations: out of stock, discontinued, coming soon
-        unavailable_indicators = ["Nincs raktáron", "Megszűnt", "Hamarosan érkezik"]
+        unavailable_indicators = ['nincs raktáron', 'megszűnt', 'hamarosan érkezik']
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:
@@ -929,32 +929,37 @@ def verify_order_fee(order):
         fee_element = wait.until(
             EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
         )    
-        actual_fee = fee_element.text
-        print(f"Actual fee on page: '{actual_fee}'")
+        actual_fee_text = fee_element.text
+        print(f"Actual fee on page: '{actual_fee_text}'")
+
+        actual_fee_amount = extract_price(actual_fee_text)
 
         expected_display, expected_amount = order.get_expected_total_fee()
         order.summary['expected_fee'] = expected_display
 
-        if expected_display is None:
-            print(f"✗ Can't determine expected fee")
-            return False, actual_fee
-        
-        # Special case 
-        if expected_display == 'Ingyenes kiszállítás':
-            if actual_fee == 'Ingyenes kiszállítás':
-                print(f"✓ Fee correctly marked as 'Ingyenes kiszállítás'")
-                return True, actual_fee
+        # Compare amounts (numeric) rather than display strings
+        if expected_amount is None:
+            # Handle string-only fees (like "Ingyenes kiszállítás")
+            if actual_fee_text == expected_display:
+                print(f"✓ Fee verified: {actual_fee_text}")
+                return True, actual_fee_text
             else:
-                print(f"✗ Expected 'Ingyenes kiszállítás', got '{actual_fee}'")
-                return False, actual_fee
-                    
-        # Compare display strings
-        if actual_fee == expected_display:
-            print(f"✓ Fee verified: {actual_fee}")
-            return True, actual_fee
+                print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee_text}'")
+                return False, actual_fee_text
+            
         else:
-            print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
-            return False, actual_fee
+            # Compare numeric amounts
+            if actual_fee_amount == expected_amount:
+                print(f"✓ Fee verified: {actual_fee_text} (amount: {actual_fee_amount})")
+                return True, actual_fee_text
+            else:
+                print(f"✗ Fee mismatch: Expected {expected_amount} Ft, got {actual_fee_amount} Ft")
+                return False, actual_fee_text
+              
+    except Exception as e:
+        print(f"✗ Error verifying order fees: {str(e)}")
+        take_screenshot("fee_verification_error")
+        return False, "Error"
               
     except Exception as e:
         print(f"✗ Error verifying order fees: {str(e)}")

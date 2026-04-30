@@ -173,46 +173,46 @@ class OrderContextES(ParentContext):
 
         self.delivery_options = [
                 {            
-                    "local_name": "entrega por mensajería",
-                    "en_name": "courier",
-                    "opt_id": "ID_SHIPPING_METHOD_ID_22",
+                    'local_name': 'entrega por mensajería',
+                    'en_name': 'courier',
+                    'opt_id': 'ID_SHIPPING_METHOD_ID_22',
                     'is_default': True
                     }
                 ]
     
         self.payment_options = [
                 {
-                    "local_name": "tarjeta de crédito/débito",
-                    "en_name": "Credit/debit card",
-                    "opt_id": "ID_PAY_SYSTEM_ID_45",
+                    'local_name': 'tarjeta de crédito/débito',
+                    'en_name': 'credit/debit card',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_45',
                     'is_default': True,
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
                         'price_class': [0, 1, 2]
-                    }    
+                    }  
                 },
                 {
-                    "local_name": "transferencia bancaria",
-                    "en_name": "Bank transfer",
-                    "opt_id": "ID_PAY_SYSTEM_ID_44",
+                    'local_name': 'transferencia bancaria',
+                    'en_name': 'bank transfer',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_44',
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
                         'price_class': [0, 1, 2]
                     }
                 },
                 {
-                    "local_name": "bizum",
-                    "en_name": "Bizum",
-                    "opt_id": "ID_PAY_SYSTEM_ID_49",
+                    'local_name': 'bizum',
+                    'en_name': 'bizum',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_49',
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
                         'price_class': [0, 1, 2]
                     }
                 },
                 {
-                    "local_name": "pago contra reembolso",
-                    "en_name": "Cash on delivery",
-                    "opt_id": "ID_PAY_SYSTEM_ID_43",
+                    'local_name': 'pago contra reembolso',
+                    'en_name': 'cash on delivery',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_43',
                     'is_cash': True,
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
@@ -220,18 +220,18 @@ class OrderContextES(ParentContext):
                     }
                 },
                 {
-                    "local_name": "tarjeta de crédito/débito (paygold)",
-                    "en_name": "Credit/debit card (paygold)",
-                    "opt_id": "ID_PAY_SYSTEM_ID_48",
+                    'local_name': 'paygold',
+                    'en_name': 'paygold',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_48',
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
                         'price_class': [0, 1, 2]
                     }
                 },
                 {
-                    "local_name": "paypal",   
-                    "en_name": "PayPal",
-                    "opt_id": "ID_PAY_SYSTEM_ID_42",
+                    'local_name': 'paypal',   
+                    'en_name': 'paypal',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_42',
                     'compatible_with': {
                         'delivery': 'entrega por mensajería',
                         'price_class': [0, 1, 2]
@@ -448,7 +448,7 @@ def is_item_available(order):
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
         # Check language file for the translations: out of stock, discontinued, coming soon
-        unavailable_indicators = ["nicht auf lager", "nicht mehr erhältlich", "demnächst verfügbar"]
+        unavailable_indicators = ['sin existencias', 'descatalogado', 'próximamente']
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:
@@ -1135,7 +1135,7 @@ def main_es(email, phone):
         if fee_success:
             print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
         else:
-            print(f"✗Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+            print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
         
         print("----------END----------")
@@ -1149,5 +1149,5 @@ def main_es(email, phone):
         driver.quit()
 
 if __name__ == "__main__":
-    main_de()
+    main_es()
 

@@ -188,7 +188,7 @@ class OrderContextPL(ParentContext):
         self.payment_options = [
             {
                 'local_name': 'przelewy',
-                'en_name': 'Bank transfer',
+                'en_name': 'bank transfer',
                 'opt_id': 'ID_PAY_SYSTEM_ID_14',
                 'is_default': True,
                 'compatible_with': {
@@ -198,7 +198,7 @@ class OrderContextPL(ParentContext):
             },
             {
                 'local_name': 'opłata za pobraniem',
-                'en_name': 'Cash on delivery',
+                'en_name': 'cash on delivery',
                 'opt_id': "ID_PAY_SYSTEM_ID_30",
                 'compatible_with': {
                     'delivery':['dostawa kurierem', 'odbiór osobisty w sklepie levenhuk'],
@@ -206,9 +206,9 @@ class OrderContextPL(ParentContext):
                 }
             },
             {
-                "local_name": "paypal",
-                "en_name": "PayPal",
-                "opt_id": "ID_PAY_SYSTEM_ID_12",
+                "local_name": 'paypal',
+                "en_name": 'paypal',
+                "opt_id": 'ID_PAY_SYSTEM_ID_12',
                 'compatible_with': {
                     'delivery':['dostawa kurierem', 'odbiór osobisty w sklepie levenhuk', 'inpost paczkomaty'],
                     'price_class': [0, 1]
@@ -421,7 +421,7 @@ def is_item_available(order):
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
         # Check language file for the translations: out of stock, discontinued, coming soon
-        unavailable_indicators = ['vyprodáno', 'už není v nabídce', 'již brzy na skladě']
+        unavailable_indicators = ['niedostępne', 'wycofano ze sprzedaży', 'dostępne wkrótce']
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:

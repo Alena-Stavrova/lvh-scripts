@@ -170,53 +170,47 @@ class OrderContextDE(ParentContext):
 
         self.delivery_options = [
                 {            
-                    "local_name": "kurierzustellung",
-                    "en_name": "courier",
-                    "opt_id": "ID_SHIPPING_METHOD_ID_21",
+                    'local_name': 'kurierzustellung',
+                    'en_name': 'courier',
+                    'opt_id': 'ID_SHIPPING_METHOD_ID_21',
                     'is_default': True
                     }
                 ]
 
         self.payment_options = [
                 {
-                    "local_name": "überweisung",
-                    "en_name": "Bank transfer",
-                    "opt_id": "ID_PAY_SYSTEM_ID_39",
+                    'local_name': 'überweisung',
+                    'en_name': 'bank transfer',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_39',
                     'is_default': True,
-                    'is_cash': False,
                     'compatible_with': {
                         'delivery': 'kurierzustellung',
                         'price_class': [1]
                     }    
                 },
                 {
-                    "local_name": "kredit-/ec-karte",
-                    "en_name": "Credit/debit card",
-                    "opt_id": "ID_PAY_SYSTEM_ID_51",
-                    'is_default': False,
-                    'is_cash': False,
+                    'local_name': 'kredit-/ec-karte',
+                    'en_name': 'credit/debit card',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_51',
                     'compatible_with': {
                         'delivery': 'kurierzustellung',
                         'price_class': [1]
                     }
                 },
                 {
-                    "local_name": "PayPal",
-                    "en_name": "PayPal",
-                    "opt_id": "ID_PAY_SYSTEM_ID_40",
-                    'is_default': False,
-                    'is_cash': False,
+                    'local_name': 'paypal',
+                    'en_name': 'paypal',
+                    'opt_id': 'ID_PAY_SYSTEM_ID_40',
                     'compatible_with': {
                         'delivery': 'kurierzustellung',
                         'price_class': [1]
                     }
                 },
                 {
-                    "local_name": "TBD",   # Actually no name displayed
-                    "en_name": "TBD",
-                    "opt_id": None,
+                    'local_name': 'TBD',   # Actually no name displayed
+                    'en_name': 'TBD',
+                    'opt_id': None,
                     'is_default': True,
-                    'is_cash': False,
                     'is_virtual': True,    # Virtual = no UI element, but should be tracked for summary
                     'compatible_with': {
                         'delivery': 'kurierzustellung',

@@ -182,9 +182,9 @@ class OrderContextIT(ParentContext):
 
         self.payment_options = [
             {
-                "local_name": "bonifico bancario",
-                "en_name": "Bank transfer",
-                "opt_id": "ID_PAY_SYSTEM_ID_24",
+                'local_name': 'bonifico bancario',
+                'en_name': 'bank transfer',
+                'opt_id': 'ID_PAY_SYSTEM_ID_24',
                 'is_default': True,
                 'compatible_with': {
                     'delivery':['consegna standard', 'consegna espressa'],
@@ -192,9 +192,9 @@ class OrderContextIT(ParentContext):
                 }
             },
             {
-                "local_name": "in contanti alla consegna",
-                "en_name": "Cash on delivery",
-                "opt_id": "ID_PAY_SYSTEM_ID_22",
+                'local_name': 'in contanti alla consegna',
+                'en_name': 'cash on delivery',
+                'opt_id': 'ID_PAY_SYSTEM_ID_22',
                 'is_cash': True,
                 'compatible_with': {
                     'delivery': ['consegna standard'],
@@ -202,18 +202,18 @@ class OrderContextIT(ParentContext):
                 }
             },
             {
-                "local_name": "carta di credito/debito",
-                "en_name": "Credit/debit card",
-                "opt_id": "ID_PAY_SYSTEM_ID_53",
+                'local_name': 'carta di credito/debito',
+                'en_name': 'credit/debit card',
+                'opt_id': 'ID_PAY_SYSTEM_ID_53',
                 'compatible_with': {
                     'delivery': ['consegna standard'],
                     'price_class': [0, 1]
                 }
             },
             {
-                "local_name": "PayPal",
-                "en_name": "PayPal",
-                "opt_id": "ID_PAY_SYSTEM_ID_23",
+                'local_name': 'paypal',
+                'en_name': 'paypal',
+                'opt_id': 'ID_PAY_SYSTEM_ID_23',
                 'compatible_with': {
                     'delivery': ['consegna standard', 'consegna espressa'],
                     'price_class': [0, 1]
@@ -243,11 +243,11 @@ class OrderContextIT(ParentContext):
         if not self.selected_delivery:
             return None, None
 
-        delivery_name = self.selected_delivery['local_name']
+        delivery_name = self.selected_delivery['en_name']
         price_class = self.sku['price_class']  # 0 = under 70, 1 = over 70
 
         # Express delivery
-        if delivery_name == 'consegna espressa':
+        if delivery_name == 'express':
             fee = self.fees['shipping']['express']['any']
             return fee, None  # Return display string only
         
@@ -418,7 +418,7 @@ def is_item_available(order):
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
         # Check language file for the translations: out of stock, discontinued, coming soon
-        unavailable_indicators = ["non disponibile", "fuori produzione", "presto in arrivo"]
+        unavailable_indicators = ['non disponibile', 'fuori produzione', 'presto in arrivo']
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:
@@ -1145,7 +1145,7 @@ def main_it(email, phone):
         if fee_success:
             print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
         else:
-            print(f"✗Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+            print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
         print("----------END----------")
         time.sleep(10)

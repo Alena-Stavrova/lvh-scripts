@@ -169,8 +169,8 @@ class OrderContextUS(ParentContext):
 
         self.delivery_options = [
                 {            
-                    'local_name': 'courier delivery',
-                    'en_name': 'courier delivery',
+                    'local_name': 'courier',
+                    'en_name': 'courier',
                     'opt_id': 'ID_SHIPPING_METHOD_ID_23',
                     'is_default': True
                     }
@@ -178,13 +178,13 @@ class OrderContextUS(ParentContext):
     
         self.payment_options = [
                 {
-                    'local_name': "TBD",   # No name displayed
-                    'en_name': "TBD",
+                    'local_name': 'TBD',   # No name displayed
+                    'en_name': 'TBD',
                     'opt_id': None,
                     'is_default': True,
                     'is_virtual': True,    # Virtual = no UI element, but should be tracked for summary
                     'compatible_with': {
-                        'delivery': 'courier delivery',
+                        'delivery': 'courier',
                         'price_class': [0]
                     }
                 }   
@@ -192,7 +192,7 @@ class OrderContextUS(ParentContext):
 
         self.fees = {
                 'shipping': {
-                    'courier delivery': {
+                    'courier': {
                         'any': {
                             'display': 'TBD'
                         }
@@ -209,7 +209,7 @@ class OrderContextUS(ParentContext):
         if not self.selected_delivery:
             return None, None
 
-        return self.fees['shipping']['courier delivery']['any']['display'], None # Return display string only
+        return self.fees['shipping']['courier']['any']['display'], None # Return display string only
     
     def get_expected_payment_fee(self):
         # EU has no payment fees
@@ -336,7 +336,7 @@ def is_item_available(order):
         search_for_sku(sku)
         price_text = driver.find_element(By.CLASS_NAME, "catalog-card__price").text.lower()
         # Check language file for the translations: out of stock, discontinued, coming soon
-        unavailable_indicators = ["nicht auf lager", "nicht mehr erhältlich", "demnächst verfügbar"]
+        unavailable_indicators = ['out of stock', 'discontinued', 'coming soon']
         if any(indicator in price_text for indicator in unavailable_indicators):
             return False, price_text
         else:

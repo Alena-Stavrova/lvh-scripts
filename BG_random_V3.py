@@ -178,7 +178,7 @@ class OrderContextBG(ParentContext):
         self.payment_options = [
                 {
                     'local_name': 'чрез банков превод',
-                    'en_name': 'Bank transfer',
+                    'en_name': 'bank transfer',
                     'opt_id': 'ID_PAY_SYSTEM_ID_36',
                     'is_default': True,
                     'compatible_with': {
@@ -188,7 +188,7 @@ class OrderContextBG(ParentContext):
                 },
                 {
                     'local_name': 'наложен платеж',
-                    'en_name': 'Cash on delivery',
+                    'en_name': 'cash on delivery',
                     'opt_id': "ID_PAY_SYSTEM_ID_37",
                     'is_cash': True,
                     'compatible_with': {
@@ -1067,7 +1067,7 @@ def main_bg(email, phone):
         if fee_success:
             print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
         else:
-            print(f"✗Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+            print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
         
         print("----------END----------")
@@ -1081,5 +1081,5 @@ def main_bg(email, phone):
         driver.quit()
 
 if __name__ == "__main__":
-    main_de()
+    main_bg()
 
