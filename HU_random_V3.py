@@ -299,7 +299,7 @@ class OrderContextHU(ParentContext):
 # Choose random sku, return a string and int price class
 def choose_sku(order):
     # For IT price classes are only relevant for shipping costs
-    price_classes_to_try = [1]
+    price_classes_to_try = [0, 1]
     random.shuffle(price_classes_to_try) 
     
     for price_class in price_classes_to_try:
