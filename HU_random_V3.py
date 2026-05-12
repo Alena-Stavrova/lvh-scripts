@@ -61,6 +61,7 @@ class ParentContext:
     def __init__(self):
         self.user_email = None
         self.user_phone = None
+        self.currency = None
 
         self.sku = {
             'selected': None,
@@ -157,6 +158,7 @@ class ParentContext:
 class OrderContextHU(ParentContext):
     def __init__(self):
         super().__init__()
+        self.currency = 'Ft'
     
         self.sku_lists = {
             'price_classes': {
@@ -292,7 +294,7 @@ class OrderContextHU(ParentContext):
         if total_amount == 0:
             display = 'Ingyenes kiszállítás'
         else:
-            display = f'{total_amount} Ft'
+            display = f'{total_amount} {self.currency}'
         
         return display, total_amount
 
@@ -957,7 +959,7 @@ def verify_order_fee(order):
             actual_fee = int(extract_price(actual_fee_text))
         
         if actual_fee == expected_amount:
-            print(f"✓ Fee verified: {actual_fee} Ft")
+            print(f"✓ Fee verified: {actual_fee} {order.currency}")
             return True, actual_fee
         else:
             print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
@@ -1083,10 +1085,10 @@ def main_hu(email, phone):
                     step_counter.print_step("Checking cart contents")
                     if check_cart_contents(my_sku):
                         step_counter.print_step("Getting cart total price")
-                        basket_price = get_total_price_basket(order)
+                        basket_price = int(get_total_price_basket(order))
 
                         if basket_price is not None:
-                            print(f"Cart total price: {basket_price}")
+                            print(f"Cart total price: {basket_price} {order.currency}")
                                 
                             step_counter.print_step("Proceeding to checkout")
                             take_screenshot("basket_before_checkout")
@@ -1154,14 +1156,14 @@ def main_hu(email, phone):
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
-        print(f"Item price: {order.summary['basket_price']} Ft")
+        print(f"Item price: {order.summary['basket_price']} {order.currency}")
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
 
 
         # Shipping fees match check
         if fee_success:
-            print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']} Ft")
+            print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']} {order.currency}")
         else:
             print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
