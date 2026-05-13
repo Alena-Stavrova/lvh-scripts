@@ -962,7 +962,7 @@ def verify_order_fee(order):
             print(f"✓ Fee verified: {actual_fee} {order.currency}")
             return True, actual_fee
         else:
-            print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
+            print(f"✗ Fee mismatch: Expected '{expected_amount} {order.currency}', got '{actual_fee} {order.currency}'")
             return False, actual_fee
                 
     except Exception as e:

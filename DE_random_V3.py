@@ -877,16 +877,18 @@ def verify_order_fee(order):
         fee_element = wait.until(
             EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
         )    
-        actual_fee = fee_element.text
-        print(f"Actual fee on page: '{actual_fee}'")
+        actual_fee_text = fee_element.text
+        print(f"Actual fee on page: '{actual_fee_text}'")
 
-        # Get expected fee from order context
-        expected_display, _ = order.get_expected_total_fee()
+        expected_display, expected_amount = order.get_expected_total_fee()
         order.summary['expected_fee'] = expected_display
         
-        if expected_display is None:
-            print(f"✗ Can't determine expected fee")
-            return False, actual_fee
+        if actual_fee_text == 'Kostenloser Versand':
+            actual_fee = 0
+        elif actual_fee_text == 'noch festzulegen':
+            actual_fee = 'TBD'
+        else:
+            actual_fee = int(extract_price(actual_fee_text))
         
         if actual_fee == expected_display:
             print(f"✓ Fee verified: {actual_fee}")
