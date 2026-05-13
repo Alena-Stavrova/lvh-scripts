@@ -62,6 +62,7 @@ class ParentContext:
     def __init__(self):
         self.user_email = None
         self.user_phone = None
+        self.currency = None
 
         self.sku = {
             'selected': None,
@@ -159,6 +160,7 @@ class ParentContext:
 class OrderContextDE(ParentContext):
     def __init__(self):
         super().__init__()
+        self.currency = '€'
         
         self.sku_lists = {
             'price_classes': {
@@ -526,7 +528,6 @@ def get_total_price_basket(order):
         price = extract_price(price_text)
         if price is not None:
             order.summary['basket_price'] = price
-            print(order.summary['basket_price'])
             return price              
              
         print("✗ Could not find total price on page")
@@ -1016,7 +1017,7 @@ def main_de(email, phone):
                         basket_price = get_total_price_basket(order)
 
                         if basket_price is not None:
-                            print(f"Cart total price: {basket_price}")
+                            print(f"Cart total price: {basket_price} {order.currency}")
                                 
                             step_counter.print_step("Proceeding to checkout")
                             take_screenshot("basket_before_checkout")
@@ -1084,7 +1085,7 @@ def main_de(email, phone):
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
-        print(f"Item price: €{order.summary['basket_price']}")
+        print(f"Item price: {order.summary['basket_price']} {order.currency}")
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
         
