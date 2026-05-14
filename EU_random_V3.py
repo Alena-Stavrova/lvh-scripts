@@ -368,7 +368,7 @@ def search_for_sku(sku):
         take_screenshot("search_results")
 
         if sku == card_sku:        
-            print("✓ Search completed successfully")
+            print("Search completed successfully")
             return True
         else:
             print(f"✗ First found item doesn't match the search: looked for {sku}, first item is {card_sku}")

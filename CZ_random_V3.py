@@ -61,6 +61,7 @@ class ParentContext:
     def __init__(self):
         self.user_email = None
         self.user_phone = None
+        self.currency = None
 
         self.sku = {
             'selected': None,
@@ -156,6 +157,7 @@ class ParentContext:
 class OrderContextCZ(ParentContext):
     def __init__(self):
         super().__init__()
+        self.currency = 'Kč'
 
         self.sku_lists = {
             'price_classes': {
@@ -273,11 +275,21 @@ class OrderContextCZ(ParentContext):
         return None, None
 
     def get_expected_total_fee(self):
-        # Just return the shipping fee display string
-        ship_display, _ = self.get_expected_shipping_fee()
-        return ship_display, None
-
+        ship_display, ship_amount = self.get_expected_shipping_fee()
+        pay_display, pay_amount = self.get_expected_payment_fee()
         
+        # Calculate total amount (handle None as 0)
+        ship_amount = ship_amount if ship_amount is not None else 0
+        pay_amount = pay_amount if pay_amount is not None else 0
+        total_amount = ship_amount + pay_amount
+        
+        # Format display string
+        if total_amount == 0:
+            display = 'Doprava zdarma'
+        else:
+            display = f'{total_amount} {self.currency}'
+        
+        return display, total_amount
     
 # Choose random sku, return a string and int price class
 def choose_sku(order):
@@ -989,26 +1001,24 @@ def verify_order_fee(order):
         fee_element = wait.until(
             EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
         )    
-        actual_fee = fee_element.text
-        print(f"Actual fee on page: '{actual_fee}'")
-        
-        # Get expected fee from order context
+        actual_fee_text = fee_element.text
+        print(f"Actual fee on page: '{actual_fee_text}'")
+
         expected_display, expected_amount = order.get_expected_total_fee()
         order.summary['expected_fee'] = expected_display
-        print(expected_display)
+
+        if actual_fee_text == 'Doprava zdarma':
+            actual_fee = 0
+        else:
+            actual_fee = int(extract_price(actual_fee_text))
         
-        if expected_display is None:
-            print(f"✗ Can't determine expected fee")
-            return False, actual_fee
-        
-        # Compare display strings
-        if actual_fee == expected_display:
-            print(f"✓ Fee verified: {actual_fee}")
+        if actual_fee == expected_amount:
+            print(f"✓ Fee verified: {actual_fee} {order.currency}")
             return True, actual_fee
         else:
-            print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
+            print(f"✗ Fee mismatch: Expected '{expected_amount} {order.currency}', got '{actual_fee} {order.currency}'")
             return False, actual_fee
-              
+                
     except Exception as e:
         print(f"✗ Error verifying order fees: {str(e)}")
         take_screenshot("fee_verification_error")
@@ -1128,10 +1138,10 @@ def main_cz(email, phone):
                     step_counter.print_step("Checking cart contents")
                     if check_cart_contents(my_sku):
                         step_counter.print_step("Getting cart total price")
-                        basket_price = get_total_price_basket(order)
+                        basket_price = int(get_total_price_basket(order))
 
                         if basket_price is not None:
-                            print(f"Cart total price: {basket_price}")
+                            print(f"Cart total price: {basket_price} {order.currency}")
                                 
                             step_counter.print_step("Proceeding to checkout")
                             take_screenshot("basket_before_checkout")
@@ -1199,14 +1209,14 @@ def main_cz(email, phone):
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
-        print(f"Item price: {order.summary['basket_price']} Kč")
+        print(f"Item price: {order.summary['basket_price']} {order.currency}")
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
 
 
         # Shipping fees match check
         if fee_success:
-            print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
+            print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']} {order.currency}")
         else:
             print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
         
