@@ -886,7 +886,7 @@ def verify_order_fee(order):
         if actual_fee_text == 'Kostenloser Versand':
             actual_fee = 0
         elif actual_fee_text == 'noch festzulegen':
-            actual_fee = 'TBD'
+            actual_fee = 'noch festzulegen'
         else:
             actual_fee = int(extract_price(actual_fee_text))
         
