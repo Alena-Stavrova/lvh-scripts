@@ -1,3 +1,4 @@
+
 import BG_random_V3 as bg
 import CZ_random_V3 as cz
 import DE_random_V3 as de
@@ -8,6 +9,7 @@ import IT_random_V3 as it
 import PL_random_V3 as pl
 import TR_random_V3 as tr
 import US_random_V3 as us
+import RU_random_V3 as ru
 
 import random
 
@@ -21,10 +23,11 @@ script_modules = {
     'IT': it,
     'PL': pl,
     'TR': tr,
-    'US': us
+    'US': us,
+    'RU': ru
     }
 
-full_script_list = ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
+full_script_list = ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US', 'RU']
 
 # ['BG', 'CZ', 'DE', 'ES', 'EU', 'HU', 'IT', 'PL', 'TR', 'US']
 # ['HU', 'BG']
@@ -35,14 +38,14 @@ def list_substraction(list_1, list_2):
     return new_list
 
 print("Type countries space-separated, like 'ES EU PL'")
-print("Or type '10' to run ALL scripts")
-print("Or type '10-HU DE' to exclude 1+ script (HU DE) and run all the others")
+print("Or type '11' to run ALL scripts")
+print("Or type '11-HU DE' to exclude 1+ script (HU DE) and run all the others")
 scripts_string = input("Enter your choice: ")
 
-if scripts_string == "10":
+if scripts_string == "11":
     scripts_to_run = full_script_list
-elif "10-" in scripts_string:
-    # Remove 8 and minus sign
+elif "11-" in scripts_string:
+    # Remove 11 and minus sign
     removed_scripts = scripts_string[3:].upper().split()
     scripts_to_run = list_substraction(full_script_list, removed_scripts)
     print('Running: ' + ' '.join(scripts_to_run))
