@@ -82,7 +82,8 @@ class ParentContext:
             'basket_price': None,
             'order_result': None,
             'expected_fee': None,
-            'order_fee': None}
+            'order_fee': None,
+            'discount': None}
     
     def get_sku_list(self, price_class):
         # Returns the SKU list for a specific price class
@@ -158,7 +159,7 @@ class OrderContextRU(ParentContext):
     
         self.sku_lists = {
             'price_classes': {
-                0: [77830, 86570, 76825, 69036, 79583, 
+                0: [77830, 86570, 76825, 69037, 79583, 
                     78374, 72111, 81698, 80335, 85312]
             }
         }
@@ -320,18 +321,16 @@ class OrderContextRU(ParentContext):
         return fee_data['display'], fee_data['amount'] if fee_data else (None, None)
     
     def get_expected_discount(self):
+        # Returns discount percentage (0.05 = 5%) or 0 if no discount applies.
         if not self.selected_payment:
-            return None, None
+            return None
         
-        is_discount = self.selected_payment('is_discount', False)
-        region = self.selected_region
-
-        if is_discount and region == 'regions':
-            # 5% discount for regions when paid with credit card
-            discount = 0.05
-        else:
-            discount = 0
-        return discount
+        # Discount only applies when:
+        # 1. Payment has discount flag
+        # 2. Region is 'regions' (not Moscow, not St. Pete)
+        if self.selected_payment.get('is_discount') and self.sku.get('region') == 'regions':
+            return 0.05
+        return 0
 
 # Choose random sku, return a string and int price class
 def choose_sku(order):
@@ -1102,9 +1101,16 @@ def verify_order_fee(order):
                 fee_element = wait.until(
                     EC.presence_of_element_located((By.ID, "bx-cost-shipping"))
                 )
-                order.summary['order_fee'] = fee_element.text
+                fee_text = fee_element.text
+                order.summary['order_fee'] = fee_text
+                # Also store the numeric amount for discount calculations
+                if fee_text == 'Бесплатная доставка':
+                    order.summary['order_fee_amount'] = 0
+                else:
+                    order.summary['order_fee_amount'] = extract_price(fee_text)
             except:
                 order.summary['order_fee'] = "unknown"
+                order.summary['order_fee_amount'] = 0
             return True, order.summary.get('order_fee')
         
         # For our own deliveries, verify against expected fees
@@ -1124,7 +1130,11 @@ def verify_order_fee(order):
             actual_fee = 0
         else:
             actual_fee = extract_price(actual_fee_text)
-        
+
+        # Store the numeric amount
+        order.summary['order_fee'] = actual_fee_text
+        order.summary['order_fee_amount'] = actual_fee
+
         if actual_fee == expected_amount:
             print(f"✓ Fee verified: {actual_fee} {order.currency}")
             return True, actual_fee
@@ -1136,7 +1146,73 @@ def verify_order_fee(order):
         print(f"✗ Error verifying order fees: {str(e)}")
         take_screenshot("fee_verification_error")
         return False, "Error"
-              
+
+def verify_discount_label(order):
+    # Check if the discount percentage text matches expectations.
+    # Returns (success, actual_discount_display_string)
+    try:
+        expected_discount_pct = order.get_expected_discount()
+        
+        discount_section = driver.find_element(By.ID, "bx-order-discount")
+        discount_visible = discount_section.is_displayed()
+        
+        if expected_discount_pct == 0:
+            if discount_visible:
+                print("✗ Discount section visible but none expected!")
+                return False, "0% (unexpected)"
+            print("✓ No discount (as expected)")
+            return True, "0%"
+        
+        if not discount_visible:
+            print("✗ Discount expected but section not visible!")
+            return False, "0% (missing)"
+        
+        actual_discount_text = driver.find_element(By.ID, "bx-order-discount-content").text
+        expected_text = f"{int(expected_discount_pct * 100)}%"
+        
+        if actual_discount_text == expected_text:
+            print(f"✓ Discount label correct: {actual_discount_text}")
+            return True, actual_discount_text
+        else:
+            print(f"✗ Discount label mismatch: expected '{expected_text}', got '{actual_discount_text}'")
+            return False, actual_discount_text
+            
+    except Exception as e:
+        print(f"✗ Error checking discount label: {str(e)}")
+        traceback.print_exc()
+        return False, "Error"
+
+def verify_discount_math(order):
+    # Check if the discounted total price is calculated correctly
+    try:
+        expected_discount_pct = order.get_expected_discount()
+        
+        if expected_discount_pct == 0:
+            return True  # Nothing to verify
+        
+        item_price = order.summary.get('basket_price')
+        delivery_cost = order.summary.get('order_fee_amount')
+        
+        new_total_elem = driver.find_element(By.ID, "bx-total-cost")
+        new_total = extract_price(new_total_elem.text)
+        
+        discounted_item_price = item_price * (1 - expected_discount_pct)
+        expected_total = discounted_item_price + delivery_cost
+        
+        if round(expected_total) == round(new_total):
+            print(f"✓ Discount math verified: {item_price} - {int(expected_discount_pct*100)}% + {delivery_cost} = {new_total}")
+            return True
+        else:
+            print(f"✗ Discount math mismatch:")
+            print(f"   Item: {item_price} → discounted: {discounted_item_price}")
+            print(f"   + Delivery: {delivery_cost}")
+            print(f"   Expected: {expected_total}, Got: {new_total}")
+            return False
+            
+    except Exception as e:
+        print(f"✗ Error verifying discount math: {str(e)}")
+        traceback.print_exc()
+        return False   
 
 def place_order():
     # Finalize the order by clicking the checkout button on the order form
@@ -1285,6 +1361,12 @@ def main_ru(email, phone):
                                     fee_success, fee_display = verify_order_fee(order)
                                     if fee_success:
                                         order.summary['order_fee'] = fee_display
+                                    
+                                    step_counter.print_step("Verifying discount")
+                                    discount_label_ok, discount_display = verify_discount_label(order)
+                                    order.summary['discount'] = discount_display
+                                    discount_math_ok = verify_discount_math(order)
+                                    # discount_ok = discount_label_ok and discount_math_ok
                                             
                                     step_counter.print_step("Placing order")
                                     order_result = place_order()
@@ -1324,6 +1406,7 @@ def main_ru(email, phone):
         print(f'Chosen region: {order.selected_region}')
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
+        print(f'Discount: {order.summary['discount']}')
 
 
         if fee_success:
