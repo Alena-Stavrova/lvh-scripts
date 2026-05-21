@@ -395,7 +395,8 @@ def extract_price(price_text):
 def close_cookie_popup(): 
     try:
         accept_button = WebDriverWait(driver, 3).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".cky-btn.cky-btn-accept"))
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 
+                "#cookie_notice_alert a.btn.btn-outline-dark.btn-sm.fs-12"))
         )
         accept_button.click()
         print("Cookie popup closed")
@@ -921,12 +922,12 @@ def select_payment_option(order):
                                                                                                     
 def fill_order_form(user_email, test_phone, order):
     try:
-        ship_to = choose_address() #is a dictionary
+        ship_to = choose_address(order) #is a dictionary
         print(f"Chosen address: {ship_to}")
         
         # Wait for the form to be present
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(
-            (By.ID, "EMAIL"))
+            (By.ID, "bx-soa-order-form"))
         )
         print("Form found, starting to fill fields...")
         
@@ -936,7 +937,7 @@ def fill_order_form(user_email, test_phone, order):
         # Email field
         try:
             email_field = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.ID, "EMAIL"))
+                EC.visibility_of_element_located((By.ID, "bx-input-order-EMAIL"))
             )
             email_field.clear()
             email_field.send_keys(user_email)
@@ -950,11 +951,20 @@ def fill_order_form(user_email, test_phone, order):
         try:
             # Different selector - no ID
             phone_field = WebDriverWait(driver, 5).until(
-                EC.visibility_of_element_located((By.NAME, "ORDER_PROP_88"))
+                EC.visibility_of_element_located((By.NAME, "ORDER_PROP_66"))
             )
+            phone_field.click()
             phone_field.clear()
             phone_field.send_keys(test_phone)
-            print("Phone field filled")
+            print("Phone number entered")
+    
+            # Click "Отправить смс" button
+            sms_button = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-sms-submit='send']"))
+            )
+            sms_button.click()
+            time.sleep(0.5)
+            print("SMS button clicked, phone field filled")
             
         except Exception as e:
             print(f"✗ Error with phone field: {str(e)}")
@@ -964,7 +974,7 @@ def fill_order_form(user_email, test_phone, order):
         # Name field
         try:
             name_field = WebDriverWait(driver, 5).until(
-                EC.visibility_of_element_located((By.ID, "FIO_SHIP"))
+                EC.visibility_of_element_located((By.ID, "bx-input-order-FIO_SHIP"))
             )
             name_field.clear()
             name_field.send_keys("Алена Авто Тест")
@@ -974,7 +984,17 @@ def fill_order_form(user_email, test_phone, order):
             print(f"✗ Error with name field: {str(e)}")
             take_screenshot("name_field_error")
             return False  
-               
+        
+         # Order comment (2 lines)
+        try:
+            comment_field = driver.find_element(By.ID, "bx-input-order-USER_DESCRIPTION")
+            driver.execute_script('arguments[0].value = "Алена Авто Тест\\nЭтот заказ сделан моими усердными миньонами";', comment_field)
+            print("Comment field filled")
+        
+        except Exception as e:
+            print(f"✗ Error with comment field: {str(e)}")
+            take_screenshot("comment_field_error")
+
         # Shipping address
         print("Filling shipping address...")
 
@@ -1061,16 +1081,6 @@ def fill_order_form(user_email, test_phone, order):
         
         # Billing address is the same as shipping (default tick remains)
         print("Billing address remains same as shipping (default)")
-
-        # Order comment (2 lines)
-        try:
-            comment_field = driver.find_element(By.ID, "ORDER_DESCRIPTION")
-            driver.execute_script('arguments[0].value = "Алена Авто Тест\\nЭтот заказ сделан моими усердными миньонами";', comment_field)
-            print("Comment field filled")
-        
-        except Exception as e:
-            print(f"✗ Error with comment field: {str(e)}")
-            take_screenshot("comment_field_error")
         
         print("✓ Order form filled successfully")
         return True
