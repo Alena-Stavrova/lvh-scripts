@@ -883,8 +883,6 @@ def verify_order_fee(order):
         else:
             print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
             return False, actual_fee
-        
-        #✗ Fee mismatch: Expected '{'display': 'noch festzulegen'}', got 'noch festzulegen'
             
     except Exception as e:
         print(f"✗ Error verifying order fees: {str(e)}")
