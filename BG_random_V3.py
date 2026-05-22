@@ -159,6 +159,7 @@ class OrderContextBG(ParentContext):
     def __init__(self):
         super().__init__()
         self.currency = 'лв.'
+        self.display_cents = True
     
         self.sku_lists = {
             'price_classes': {

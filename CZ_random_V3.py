@@ -158,6 +158,7 @@ class OrderContextCZ(ParentContext):
     def __init__(self):
         super().__init__()
         self.currency = 'Kč'
+        self.display_cents = False
 
         self.sku_lists = {
             'price_classes': {
