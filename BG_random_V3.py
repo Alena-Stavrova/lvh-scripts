@@ -64,6 +64,7 @@ class ParentContext:
         self.user_phone = None
         self.currency = None
         self.displays_cents = True
+        self.free_shipping_phrase = None
 
         self.sku = {
             'selected': None,
@@ -171,7 +172,7 @@ class OrderContextBG(ParentContext):
     def __init__(self):
         super().__init__()
         self.currency = 'лв.'
-        self.display_cents = True
+        self.displays_cents = True
         self.free_shipping_phrase = 'Безплатна доставка'
     
         self.sku_lists = {
@@ -298,7 +299,6 @@ def choose_sku(order):
             
             print(f"✓ Selected SKU: {selected_sku} (Price class: {price_class})")
             return selected_sku, price_class
-            return selected, price_class
     
     # If we get here, both classes have no available SKUs
     print("✗ WARNING: No available SKUs in either price class!")
@@ -880,6 +880,7 @@ def fill_order_form(user_email, test_phone):
             take_screenshot("comment_field_error")
 
         print("✓ Order form filled successfully")
+        take_screenshot("order_form_filled")
         return True
         
     except Exception as e:
