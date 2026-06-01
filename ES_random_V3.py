@@ -62,6 +62,8 @@ class ParentContext:
     def __init__(self):
         self.user_email = None
         self.user_phone = None
+        self.currency = None
+
 
         self.sku = {
             'selected': None,
@@ -158,6 +160,8 @@ class ParentContext:
 class OrderContextES(ParentContext):
     def __init__(self):
         super().__init__()
+        self.currency = '€'
+        self.display_cents = True
     
         self.sku_lists = {
             'price_classes': {
@@ -311,7 +315,7 @@ class OrderContextES(ParentContext):
         if total_amount == 0:
             display = 'Envío gratuito'
         else:
-            display = f'{total_amount} €'
+            display = f'{total_amount} {self.currency}'
         
         return display, total_amount
 
@@ -946,7 +950,7 @@ def verify_order_fee(order):
             return False, actual_fee
         
         if actual_fee == expected_display:
-            print(f"✓ Fee verified: {actual_fee}")
+            print(f"✓ Fee verified: {actual_fee} {order.currency}")
             return True, actual_fee
         else:
             print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
