@@ -3,7 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-# Only need Select for Levenhuk (/order >> selecting country)
+# Importing Select is for LVHs only, not ERMs
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 import time
@@ -35,7 +35,6 @@ def create_optimized_driver():
     
     # Longer timeout for initial load
     driver.set_page_load_timeout(60)
-    
     return driver
 
 def take_screenshot(name):
@@ -76,7 +75,7 @@ class ParentContext:
 
         self.selected_payment = None
 
-        # Results summary
+        # Show important data in the final summary
         self.summary = {
             'delivery_option': None,
             'payment_option': None,
@@ -86,16 +85,12 @@ class ParentContext:
             'order_fee': None}
     
     def get_sku_list(self, price_class):
-        # Returns the SKU list for a specific price class
         return self.sku_lists['price_classes'][price_class]
-    
+
     def get_all_skus(self):
-        # Get all SKUs from both price classes
-        all_skus = self.sku_lists['price_classes'][0] + self.sku_lists['price_classes'][1]
-        return all_skus
+        return self.get_sku_list(0) + self.get_sku_list(1)
     
     def mark_sku_unavailable(self, sku):
-        # Add a SKU to the unavailable list
         if sku not in self.sku['unavailable']:
             self.sku['unavailable'].append(sku)
 
