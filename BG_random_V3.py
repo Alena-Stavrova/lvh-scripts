@@ -118,6 +118,7 @@ class ParentContext:
             
             # Check delivery compatibility (if delivery is set)
             delivery_ok = True
+            # If a delivery is selected and this payment option has delivery compatibility rules
             if delivery_name and 'delivery' in compatible:
                 delivery_ok = delivery_name in compatible['delivery']
             
@@ -157,8 +158,6 @@ class ParentContext:
             self.summary['order_fee'] = f"{amount} {self.currency}"
             self.summary['order_fee_amount'] = amount
             
-    def update_summary(self, **kwargs):
-        self.summary.update(kwargs)
 
 class OrderContextBG(ParentContext):
     def __init__(self):
