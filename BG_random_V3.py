@@ -108,10 +108,7 @@ class ParentContext:
         return None
 
     def get_available_payment_options(self):
-        if not self.sku.get('price_class') is None:
-            price_class = self.sku['price_class']
-        else:
-            price_class = None
+        price_class = self.sku.get('price_class')  # None if not set
         
         delivery_name = self.selected_delivery['local_name'] if self.selected_delivery else None
 
