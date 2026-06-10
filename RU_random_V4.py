@@ -11,6 +11,7 @@ import random
 import os
 import traceback
 import sys
+import math
 
 # Initialize driver with None (to be changed later)
 driver = None
@@ -66,12 +67,11 @@ class ParentContext:
         self.sku = {
             'selected': None,
             'price_class': None, # Just 1 price class here (price class 0)
+            'region': None,
             'unavailable': []   # Track unavailable SKUs
         }
 
         self.selected_delivery = None 
-
-        self.selected_region = None
 
         self.selected_payment = None
 
@@ -283,6 +283,7 @@ class OrderContextRU(ParentContext):
             }
         ]
 
+
         self.fees = {
             'shipping': {                
                 'shop pickup (St. Petersburg)': {
@@ -375,8 +376,9 @@ def choose_address(order):
         '364024 Грозный Лорсанова 28'# Google/Dadata zips don't match, used Dadata
     ] 
     }
-    chosen_region = random.choice(order.regions)
-    order.selected_region = chosen_region
+    # chosen_region = random.choice(order.regions) ####
+    chosen_region = 'regions'  # ← force regions
+    order.sku['region'] = chosen_region
     region_lib = shipping_addresses[chosen_region]
 
     address = random.choice(region_lib)
@@ -651,6 +653,10 @@ def _select_pickup_location(order):
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "pickup-points"))
         )
+        # Wait for at least one tile-radio to be present (list populated)
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".pickup-points .tile-radio"))
+        )
         time.sleep(0.5)
         
         # Get all pickup point items (tile-radio divs)
@@ -722,7 +728,7 @@ def _select_pickup_location(order):
     
 def select_delivery_option(order):
     try:
-        region = order.selected_region
+        region = order.sku['region']
         delivery_options = [d for d in order.delivery_options if region in d['compatible_with']['region']]
         selected = random.choice(delivery_options)
         order.selected_delivery = selected
@@ -765,6 +771,7 @@ def select_delivery_option(order):
 def select_payment_option(order):
     try:
         print("Selecting payment option...")
+        """
         available_options = order.get_available_payment_options()
         
         if not available_options:
@@ -788,12 +795,22 @@ def select_payment_option(order):
         else:
             print("✗ No payment options available")
             return False, None
+        """
+        selected = {   # 5% discount for regions
+                'local_name': 'оплата онлайн (банковская карта)',
+                'en_name': 'credit card',
+                'opt_id': 'ID_PAY_SYSTEM_ID_14',
+                'is_default': True,
+                'is_discount': True,
+                'is_third_party': True,
+            }
 
         # Update order context
         order.selected_payment = selected
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
 
+        """
         # Get default payment
         default = order.get_default_payment()
         default_name = default['local_name'] if default else None
@@ -834,6 +851,41 @@ def select_payment_option(order):
         else:
             print(f"Using {selected_name} (virtual or default), no action needed")
             return True, selected_name
+            """
+        
+        
+        try:
+            payment_label = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 
+                    f"label[for='{selected_id}']"))
+            )
+            print("Found payment label, attempting to click...")
+                
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});",
+                payment_label
+            )
+            time.sleep(0.5)
+            payment_label.click()
+            time.sleep(1)
+                
+            print(f"✓ Successfully selected {selected_name}")
+            return True, selected_name
+                
+        except Exception as e:
+            # Fallback: try JavaScript click if normal click fails
+            try:
+                print("Attempting JavaScript click fallback...")
+                driver.execute_script(
+                    f"document.querySelector('label[for=\"{selected_id}\"]').click();"
+                )
+                time.sleep(1)
+                print(f"✓ Successfully selected {selected_name} via JavaScript")
+                return True, selected_name
+            except:
+                print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
+                return False, selected_name
+        
             
     except Exception as e:
         print(f"✗ Error in payment selection process: {str(e)}")
@@ -1068,12 +1120,10 @@ def verify_order_fee(order):
         take_screenshot("fee_verification_error")
         return False, "Error"
 
-def verify_discount_label(order):
+def verify_discount_label(order, expected_discount_pct):
     # Check if the discount percentage text matches expectations.
     # Returns (success, actual_discount_display_string)
-    try:
-        expected_discount_pct = order.get_expected_discount()
-        
+    try:        
         discount_section = driver.find_element(By.ID, "bx-order-discount")
         discount_visible = discount_section.is_displayed()
         
@@ -1103,11 +1153,10 @@ def verify_discount_label(order):
         traceback.print_exc()
         return False, "Error"
 
-def verify_discount_math(order):
+def verify_discount_math(order, expected_discount_pct):
     # Check if the discounted total price is calculated correctly
+    # Needed because discount is substracted from the total price (not item's price)
     try:
-        expected_discount_pct = order.get_expected_discount()
-        
         if expected_discount_pct == 0:
             return True  # Nothing to verify
         
@@ -1117,7 +1166,7 @@ def verify_discount_math(order):
         new_total_elem = driver.find_element(By.ID, "bx-total-cost")
         new_total = extract_price(new_total_elem.text)
         
-        discounted_item_price = item_price * (1 - expected_discount_pct)
+        discounted_item_price = math.floor(item_price * (1 - expected_discount_pct) + 0.5)
         expected_total = discounted_item_price + delivery_cost
         
         if round(expected_total) == round(new_total):
@@ -1284,10 +1333,12 @@ def main_ru(email, phone):
                                         order.summary['order_fee'] = fee_display
                                     
                                     step_counter.print_step("Verifying discount")
-                                    discount_label_ok, discount_display = verify_discount_label(order)
-                                    order.summary['discount'] = discount_display
-                                    discount_math_ok = verify_discount_math(order)
-                                    # discount_ok = discount_label_ok and discount_math_ok
+                                    expected_discount_pct = order.get_expected_discount()
+                                    order.summary['discount'] = expected_discount_pct
+
+                                    discount_label_ok, discount_display = verify_discount_label(order, expected_discount_pct)
+                                    discount_math_ok = verify_discount_math(order, expected_discount_pct)
+                                    discount_ok = discount_label_ok and discount_math_ok
                                             
                                     step_counter.print_step("Placing order")
                                     order_result = place_order()
@@ -1324,7 +1375,7 @@ def main_ru(email, phone):
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
         print(f"Item price: {order.summary['basket_price']} {order.currency}")
-        print(f'Chosen region: {order.selected_region}')
+        print(f'Chosen region: {order.sku['region']}')
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
         print(f'Discount: {order.summary['discount']}')

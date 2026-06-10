@@ -9,7 +9,7 @@ import IT_random_V3 as it
 import PL_random_V3 as pl
 import TR_random_V3 as tr
 import US_random_V3 as us
-import RU_random_V3 as ru
+import RU_random_V4 as ru
 
 import random
 
