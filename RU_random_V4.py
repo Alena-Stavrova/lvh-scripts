@@ -376,8 +376,7 @@ def choose_address(order):
         '364024 Грозный Лорсанова 28'# Google/Dadata zips don't match, used Dadata
     ] 
     }
-    # chosen_region = random.choice(order.regions) ####
-    chosen_region = 'regions'  # ← force regions
+    chosen_region = random.choice(order.regions) 
     order.sku['region'] = chosen_region
     region_lib = shipping_addresses[chosen_region]
 
@@ -771,7 +770,7 @@ def select_delivery_option(order):
 def select_payment_option(order):
     try:
         print("Selecting payment option...")
-        """
+    
         available_options = order.get_available_payment_options()
         
         if not available_options:
@@ -795,22 +794,12 @@ def select_payment_option(order):
         else:
             print("✗ No payment options available")
             return False, None
-        """
-        selected = {   # 5% discount for regions
-                'local_name': 'оплата онлайн (банковская карта)',
-                'en_name': 'credit card',
-                'opt_id': 'ID_PAY_SYSTEM_ID_14',
-                'is_default': True,
-                'is_discount': True,
-                'is_third_party': True,
-            }
-
+        
         # Update order context
         order.selected_payment = selected
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
 
-        """
         # Get default payment
         default = order.get_default_payment()
         default_name = default['local_name'] if default else None
@@ -851,41 +840,6 @@ def select_payment_option(order):
         else:
             print(f"Using {selected_name} (virtual or default), no action needed")
             return True, selected_name
-            """
-        
-        
-        try:
-            payment_label = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 
-                    f"label[for='{selected_id}']"))
-            )
-            print("Found payment label, attempting to click...")
-                
-            driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});",
-                payment_label
-            )
-            time.sleep(0.5)
-            payment_label.click()
-            time.sleep(1)
-                
-            print(f"✓ Successfully selected {selected_name}")
-            return True, selected_name
-                
-        except Exception as e:
-            # Fallback: try JavaScript click if normal click fails
-            try:
-                print("Attempting JavaScript click fallback...")
-                driver.execute_script(
-                    f"document.querySelector('label[for=\"{selected_id}\"]').click();"
-                )
-                time.sleep(1)
-                print(f"✓ Successfully selected {selected_name} via JavaScript")
-                return True, selected_name
-            except:
-                print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
-                return False, selected_name
-        
             
     except Exception as e:
         print(f"✗ Error in payment selection process: {str(e)}")
