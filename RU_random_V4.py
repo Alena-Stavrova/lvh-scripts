@@ -322,7 +322,7 @@ class OrderContextRU(ParentContext):
         return fee_data['display'], fee_data['amount'] if fee_data else (None, None)
     
     def get_expected_discount(self):
-        # Returns discount percentage (0.05 = 5%) or 0 if no discount applies.
+        # Returns discount percentage (0.05 = 5%) or 0 if no discount applies
         if not self.selected_payment:
             return None
         
@@ -1096,7 +1096,7 @@ def verify_discount_label(order, expected_discount_pct):
         expected_text = f"{int(expected_discount_pct * 100)}%"
         
         if actual_discount_text == expected_text:
-            print(f"✓ Discount label correct: {actual_discount_text}")
+            print(f"Discount label correct: {actual_discount_text}")
             return True, actual_discount_text
         else:
             print(f"✗ Discount label mismatch: expected '{expected_text}', got '{actual_discount_text}'")
@@ -1288,7 +1288,7 @@ def main_ru(email, phone):
                                     
                                     step_counter.print_step("Verifying discount")
                                     expected_discount_pct = order.get_expected_discount()
-                                    order.summary['discount'] = expected_discount_pct
+                                    order.summary['discount'] = int(expected_discount_pct * 100)
 
                                     discount_label_ok, discount_display = verify_discount_label(order, expected_discount_pct)
                                     discount_math_ok = verify_discount_math(order, expected_discount_pct)
@@ -1332,7 +1332,7 @@ def main_ru(email, phone):
         print(f'Chosen region: {order.sku['region']}')
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
-        print(f'Discount: {order.summary['discount']}')
+        print(f'Discount: {order.summary['discount']}%')
 
 
         if fee_success:
