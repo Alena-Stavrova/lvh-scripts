@@ -257,30 +257,35 @@ class OrderContextRU(ParentContext):
                 'opt_id': 'ID_PAY_SYSTEM_ID_14',
                 'is_default': True,
                 'is_discount': True,
-                'is_third_party': True,
+                'is_third_party': True
             },
             {
                 'local_name': 'банковский перевод',
                 'en_name': 'bank transfer',
-                'opt_id': 'ID_PAY_SYSTEM_ID_2',
+                'opt_id': 'ID_PAY_SYSTEM_ID_2'
             },
             {
                 'local_name': 'яндекс сплит',
                 'en_name': 'yandex split',
-                'opt_id': 'ID_PAY_SYSTEM_ID_15',
+                'opt_id': 'ID_PAY_SYSTEM_ID_15'
             },
             {   'local_name': 'наличными курьеру',
                 'en_name': 'cash on delivery (courier)',
-                'opt_id': 'ID_PAY_SYSTEM_ID_8',
+                'opt_id': 'ID_PAY_SYSTEM_ID_8'
             },
             {   'local_name': 'оплата при получении',
                 'en_name': 'cash on delivery',
-                'opt_id': 'ID_PAY_SYSTEM_ID_5',
+                'opt_id': 'ID_PAY_SYSTEM_ID_5'
             },
-             {   'local_name': 'наложенный платеж',
+            {   'local_name': 'наложенный платеж',
                 'en_name': 'cash on delivery (ems)',
-                'opt_id': 'ID_PAY_SYSTEM_ID_9',
+                'opt_id': 'ID_PAY_SYSTEM_ID_9'
+            },
+            {   'local_name': 'безналичная оплата (оплата от организации)',
+                'en_name': 'cashless payment (legal entities)',
+                'opt_id': 'ID_PAY_SYSTEM_ID_3'
             }
+
         ]
 
 
@@ -382,6 +387,32 @@ def choose_address(order):
 
     address = random.choice(region_lib)
     return(address) #returns a string
+
+def choose_tin(order):
+    tins = {
+    'Moscow': [
+        '5029104266', # МПК
+        '7712024477', # МКВЗ
+        '5074045358' # Крафтбир
+    ],
+    'St. Petersburg': [
+        '7810756045' # Пряный хмель
+        '7839064872', # AF Brew
+        '7830001010' # Игристые вина
+    ],
+    'regions': [
+        '7203556558', # Тюмень БМ-Бир
+        '1659004418', # Казань Красный восток
+        '1000023761', # Петрозаводск Карельское пиво
+        '5406804315', # Новосибирск НПЗ
+        '7451305093'# Челябинск Лаборатория живого пива
+    ] 
+    }
+    chosen_region = order.sku['region']
+    tins_lib = tins[chosen_region]
+
+    tin = random.choice(tins_lib)
+    return(tin) #returns a string
 
 def extract_price(price_text):
     # Remove all characters except digits and the comma/dot
@@ -845,6 +876,33 @@ def select_payment_option(order):
         print(f"✗ Error in payment selection process: {str(e)}")
         take_screenshot("payment_option_error")
         return False, "Error"      
+
+def select_payment_company(order):
+    try:
+        print("Only one payment option for legal entities...")
+        
+        selected = {   
+            'local_name': 'безналичная оплата (оплата от организации)',
+            'en_name': 'cashless payment (legal entities)',
+            'opt_id': 'ID_PAY_SYSTEM_ID_3'
+        }
+        
+        # Update order context
+        order.selected_payment = selected
+        selected_name = selected['local_name']
+        selected_id = selected['opt_id']
+
+        # Get default payment
+        default = order.get_default_payment()
+        default_name = default['local_name'] if default else None
+        
+        print(f"Using {selected_name} (virtual or default), no action needed")
+        return True, selected_name
+            
+    except Exception as e:
+        print(f"✗ Error in payment selection process: {str(e)}")
+        take_screenshot("payment_option_error")
+        return False, "Error"
                                                                                                     
 def fill_order_form(user_email, test_phone, order):
     try:
@@ -879,6 +937,8 @@ def fill_order_form(user_email, test_phone, order):
             phone_field = WebDriverWait(driver, 5).until(
                 EC.visibility_of_element_located((By.NAME, "ORDER_PROP_66"))
             )
+            if phone_field:
+                print("found phone field")
             phone_field.click()
             phone_field.clear()
             phone_field.send_keys(test_phone)
@@ -1018,6 +1078,123 @@ def fill_order_form(user_email, test_phone, order):
         take_screenshot("order_form_error")
         return False
 
+def fill_company_order_form(user_email, test_phone, order):
+    try:
+        ship_to = choose_address(order) #is a dictionary
+        print(f"Chosen address: {ship_to}")
+        tin_num = choose_tin(order)
+        print(f"Chosen TIN: {tin_num}")
+
+        # Wait for the form to be present
+        WebDriverWait(driver, 15).until(EC.presence_of_element_located(
+            (By.ID, "bx-soa-order-form"))
+        )
+        print("Form found, starting to fill fields...")
+        
+        # Contact information
+        print("Filling contact information...")
+        
+        # Email field
+        try:
+            email_field = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.ID, "bx-input-order-EMAIL"))
+            )
+            email_field.clear()
+            email_field.send_keys(user_email)
+            print("Email field filled")
+        except Exception as e:
+            print(f"✗ Error with email field: {str(e)}")
+            take_screenshot("email_field_error")
+            return False
+        
+        # Phone field
+        try:
+            # Different selector - no ID
+            phone_field = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.NAME, "ORDER_PROP_22"))
+            )
+            phone_field.click()
+            phone_field.clear()
+            phone_field.send_keys(test_phone)
+            print("Phone number entered")
+    
+            # Click "Отправить смс" button
+            sms_button = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-sms-submit='send']"))
+            )
+            sms_button.click()
+            time.sleep(0.5)
+            print("SMS button clicked, phone field filled")
+            
+        except Exception as e:
+            print(f"✗ Error with phone field: {str(e)}")
+            take_screenshot("phone_field_error")
+            return False
+        
+        # Name field
+        try:
+            name_field = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.ID, "bx-input-order-FIO_SHIP"))
+            )
+            name_field.clear()
+            name_field.send_keys('Алена Авто Тест')
+            print("Name field filled")
+
+        except Exception as e:
+            print(f"✗ Error with name field: {str(e)}")
+            take_screenshot("name_field_error")
+            return False  
+        
+        # TIN field
+        try:
+            # Click the ts-control to activate
+            ts_control = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "#bx-select-order-INN .ts-control"))
+            )
+            ts_control.click()
+            time.sleep(0.3)
+    
+            # Find the input inside
+            tin_input = ts_control.find_element(By.CSS_SELECTOR, "input")
+            tin_input.send_keys(tin_num)
+    
+            print(f"TIN entered: {tin_num}")
+            time.sleep(2)  # Wait for Dadata suggestions
+    
+            # Press Enter to select first suggestion
+            tin_input.send_keys(Keys.ENTER)
+            time.sleep(1)
+            print("Company selected, address auto-filled")
+    
+        except Exception as e:
+            print(f"✗ Error with TIN field: {str(e)}")
+            traceback.print_exc()
+            take_screenshot("tin_field_error")
+            return False
+
+        # Order comment (2 lines)
+        try:
+            comment_field = driver.find_element(By.ID, "bx-input-order-USER_DESCRIPTION")
+            driver.execute_script('arguments[0].value = "Алена Авто Тест\\nЭтот заказ сделан моими усердными миньонами";', comment_field)
+            print("Comment field filled")
+        
+        except Exception as e:
+            print(f"✗ Error with comment field: {str(e)}")
+            take_screenshot("comment_field_error")
+     
+        # Billing address is the same as shipping (default tick remains)
+        print("Billing address remains same as shipping (default)")
+        
+        print("✓ Order form filled successfully")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Error filling order form: {str(e)}")
+        # Add traceback to see where it's failing
+        traceback.print_exc()
+        take_screenshot("order_form_error")
+        return False
+    
 def verify_order_fee(order):
     try:
         # Skip verification for third-party deliveries (no reference price)
@@ -1204,6 +1381,13 @@ def main_ru(email, phone):
         driver.maximize_window()
         wait = WebDriverWait(driver, 20)
 
+        # Weighted random choice, picks the company roughly once in 5 times (returns a list so needs [0])
+        is_company = random.choices([True, False], weights=[1, 5], k=1)[0]
+        if is_company:
+            print("Chose an order from a legal entity (company order)")
+        else:
+            print("Chose an order from a regular customer")
+
         while True:
             # Only choose the skus that are NOT in unavailable_items
             my_sku = choose_sku(order)
@@ -1258,8 +1442,17 @@ def main_ru(email, phone):
                             take_screenshot("basket_before_checkout")
                                 
                             if proceed_to_checkout():
-                                step_counter.print_step("Filling order form")                                
-                                fill_form_success = fill_order_form(user_email, test_phone, order)
+                                step_counter.print_step("Filling order form")
+                                if is_company:
+                                    # Navigate to company order page
+                                    driver.get(website_main + "order/?person_type=COMPANY")
+                                    time.sleep(2)
+    
+                                    fill_form_success = fill_company_order_form(user_email, test_phone, order)
+                                    payment_success = select_payment_company(order)                                
+                                else:
+                                    fill_form_success = fill_order_form(user_email, test_phone, order)
+                                    payment_success, payment = select_payment_option(order)
                                 
                                 if fill_form_success:
                                     step_counter.print_step("Selecting delivery option")
@@ -1273,7 +1466,10 @@ def main_ru(email, phone):
                                         sys.exit(1)
 
                                     step_counter.print_step("Selecting payment option")
-                                    payment_success, payment = select_payment_option(order)
+                                    if is_company:
+                                        payment_success, payment = select_payment_company(order)
+                                    else:
+                                        payment_success, payment = select_payment_option(order)
                                     if payment_success:
                                         print(f"Payment selected: {payment}")
                                         order.summary['payment_option'] = payment
