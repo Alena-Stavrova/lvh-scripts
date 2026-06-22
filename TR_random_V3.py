@@ -160,7 +160,7 @@ class OrderContextTR(ParentContext):
 
         self.sku_lists = {
             'price_classes': {
-                0: [69668, 70435, 74068, 29279, 72870], # Under 1,250 TL - NOT A LOT of these
+                0: [74068, 74063, 29279, 60973, 77873, 70730], # Under 1,250 TL - NOT A LOT of these
         
                 1: [77098, 69067, 79574, 73752, 72110]  # 1,250+ TL
             }
