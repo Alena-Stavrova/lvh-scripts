@@ -72,6 +72,10 @@ class ParentContext:
 
         self.selected_payment = None
 
+        self.currency = None
+        self.displays_cents = True
+        self.free_shipping_phrase = None
+
         # Results summary
         self.summary = {
             'delivery_option': None,
@@ -153,6 +157,17 @@ class ParentContext:
     def update_summary(self, **kwargs):
         self.summary.update(kwargs)
 
+    def format_fee_display(self, amount, display_text):
+        if display_text and 'TBD' in str(display_text).upper():
+            self.summary['order_fee'] = display_text
+            self.summary['order_fee_amount'] = None
+        elif self.free_shipping_phrase and display_text == self.free_shipping_phrase:
+            self.summary['order_fee'] = f"0 {self.currency}"
+            self.summary['order_fee_amount'] = 0
+        else:
+            self.summary['order_fee'] = f"{amount} {self.currency}" if amount is not None else display_text
+            self.summary['order_fee_amount'] = amount
+            
 # Container for all order-related data
 class OrderContextIT(ParentContext):
     def __init__(self):
@@ -176,7 +191,7 @@ class OrderContextIT(ParentContext):
             {
                 "local_name": "consegna espressa",
                 "en_name": "express",
-                "opt_id": "ID_SHIPPING_METHOD_ID_27"
+                "opt_id": "ID_SHIPPING_METHOD_ID_29"
                 }
             ]
 
@@ -221,14 +236,14 @@ class OrderContextIT(ParentContext):
             }
         ]
 
+        self.currency = '€'
+        self.free_shipping_phrase = 'Spedizione gratuita'
+
         self.fees = {
             'shipping': {
-                'express': {
-                    'any': 'DA DEFINIRE'
-                },
                 'standard': {
                     'under_70': {
-                        'amount': 11,  # Numeric for calculation
+                        'amount': 11,
                         'display': '€11'
                     },
                     'over_70': {
@@ -236,7 +251,7 @@ class OrderContextIT(ParentContext):
                         'display': 'Spedizione gratuita'
                     }
                 }
-            },
+            }
         }
 
     def get_expected_shipping_fee(self):
@@ -246,11 +261,10 @@ class OrderContextIT(ParentContext):
         delivery_name = self.selected_delivery['en_name']
         price_class = self.sku['price_class']  # 0 = under 70, 1 = over 70
 
-        # Express delivery
+        # Express delivery - 3rd party API, nothing to verify against
         if delivery_name == 'express':
-            fee = self.fees['shipping']['express']['any']
-            return fee, None  # Return display string only
-        
+            return None, None 
+
         # Standard delivery
         if price_class == 0:  # Under 70€
             tier = 'under_70'
@@ -266,23 +280,21 @@ class OrderContextIT(ParentContext):
 
     def get_expected_total_fee(self):
         ship_display, ship_amount = self.get_expected_shipping_fee()
+
+        if ship_display is None and ship_amount is None:
+            return None, None  # Express/third-party — no reference
+        
         pay_display, pay_amount = self.get_expected_payment_fee()
         
-        # Handle special cases
-        if ship_display == 'DA DEFINIRE':
-            return 'DA DEFINIRE', None
-        
-        # Calculate total amount (handle None as 0)
-        ship_amount = ship_amount if ship_amount is not None else 0
-        pay_amount = pay_amount if pay_amount is not None else 0
+        ship_amount = ship_amount or 0
+        pay_amount = pay_amount or 0
         total_amount = ship_amount + pay_amount
-        
-        # Format display string
+    
         if total_amount == 0:
-            display = 'Spedizione gratuita'
+            display = self.free_shipping_phrase
         else:
-            display = f'€{total_amount}'
-        
+            display = f'{total_amount} {self.currency}'
+    
         return display, total_amount
 
 # Choose random sku, return a string and int price class
@@ -332,7 +344,7 @@ def choose_address():
         'postal_code': '90127'
     }
 ]
-    address = shipping_addresses[random.randint(0,2)] 
+    address = random.choice(shipping_addresses) 
     return(address) #returns a dictionary
 
 def extract_price(price_text):
@@ -606,7 +618,6 @@ def select_delivery_option(order):
 
         # Update order context
         order.selected_delivery = selected
-
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
         print(f"Selected: {selected_name}")
@@ -618,23 +629,38 @@ def select_delivery_option(order):
         # Only interact with UI if not default
         if selected_name != default_name:
             try:
-                # Find and click the delivery option label
-                delivery_label = wait.until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 
-                        f"label[for='{selected_id}']"))
-                )
-                print("Found delivery label, attempting to click...")
+                try:
+                    delivery_label = wait.until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 
+                            f"label[for='{selected_id}']"))
+                    )
+                    print("Found delivery label, attempting to click...")
                 
-                # Scroll to the label
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", 
-                    delivery_label
-                )
-                time.sleep(0.5)
-                
-                # Click the label
-                delivery_label.click()
+                    driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", 
+                        delivery_label
+                    )
+                    time.sleep(0.3)
+                    delivery_label.click()
+
+                except:
+                    # Fallback: click the radio input directly via JavaScript
+                    print("Label not clickable, using JS click on radio input...")
+                    driver.execute_script(
+                        f"document.querySelector('#{selected_id}').click();"
+                    )
+                    # Also trigger change event in case the page listens for it
+                    driver.execute_script(
+                        f"document.querySelector('#{selected_id}').dispatchEvent(new Event('change', {{bubbles: true}}));"
+                        )
+
                 time.sleep(1)
+                
+                # Wait for payment section to stabilize after delivery change
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, "#bx-payment-method label"))
+                )
+                time.sleep(1.5)
                 
                 print(f"✓ Option clicked: {selected_name}")
                 return True, selected_name
@@ -866,16 +892,28 @@ def fill_order_form(user_email, test_phone):
         
         # Address field
         try:
-            address_field = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.ID, "ADDRESS_SHIP"))
+            # Wait for page to stabilize after city selection (cart may be reloading)
+            try:
+                WebDriverWait(driver, 15).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "#CART-SIDEBAR-TARGET.loader"))
+                )
+                print("Loader disappeared")
+                time.sleep(0.5)
+            except:
+                print("Loader not found or already gone")
+    
+            address_field = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "ADDRESS_SHIP"))
             )
-            
-            # Click to ensure focus
-            address_field.click()
-            time.sleep(0.5)
-            
-            address_field.clear()
-            address_field.send_keys(ship_to['address'])
+
+            # Use JS to focus and set value (bypasses overlay issues)
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", address_field)
+            time.sleep(0.3)
+            driver.execute_script("arguments[0].focus();", address_field)
+            driver.execute_script("arguments[0].value = '';", address_field)
+            driver.execute_script("arguments[0].value = arguments[1];", address_field, ship_to['address'])
+            driver.execute_script("arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", address_field)
+            driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", address_field)
             print("Address field filled")
             
             # Press Tab to move to next field
@@ -892,14 +930,29 @@ def fill_order_form(user_email, test_phone):
             postal_code_field = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.ID, "ZIP_SHIP"))
             )
-            
-            # Click to ensure focus
-            postal_code_field.click()
-            time.sleep(0.5)
-            
-            postal_code_field.clear()
-            postal_code_field.send_keys(ship_to['postal_code'])
+
+            # Use JS to focus and set value (bypasses overlay issues)
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", postal_code_field)
+            time.sleep(0.3)
+            driver.execute_script("arguments[0].focus();", postal_code_field)
+            driver.execute_script("arguments[0].value = '';", postal_code_field)
+            driver.execute_script("arguments[0].value = arguments[1];", postal_code_field, ship_to['postal_code'])
+            driver.execute_script("arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", postal_code_field)
+            driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", postal_code_field)
             print("Postal code field filled")
+
+            # Wait for delivery/payment section to fully re-render after address is complete
+            # (Express delivery option and updated payment list may be loading via API)
+            print("Waiting for delivery options to stabilize...")
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "bx-delivery-method"))
+            )
+            # Wait for at least one payment label to be visible (section fully rebuilt)
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "#bx-payment-method label"))
+            )
+            time.sleep(0.5)
+            print("Delivery/payment section stabilized")
             
         except Exception as e:
             print(f"✗ Error with postal code field: {str(e)}")
@@ -931,7 +984,7 @@ def fill_order_form(user_email, test_phone):
 
 def verify_order_fee(order):
     try:
-        print("Verifying order fees...")
+        print("Verifying shipping fees...")
         time.sleep(2)
         
         # Get actual fee from page
@@ -940,36 +993,50 @@ def verify_order_fee(order):
         )    
         actual_fee = fee_element.text
         print(f"Actual fee on page: '{actual_fee}'")
-        
+
         # Get expected fee from order context
         expected_display, expected_amount = order.get_expected_total_fee()
-        order.summary['expected_fee'] = expected_display
-        
-        if expected_display is None:
-            print(f"✗ Can't determine expected fee")
-            return False, actual_fee
-        
-        # Special case: "DA DEFINIRE" (TBD)
-        if expected_display == 'DA DEFINIRE':
-            if actual_fee == 'DA DEFINIRE':
-                print(f"✓ Fee correctly marked as 'DA DEFINIRE'")
-                return True, actual_fee
+
+        # Only write it in the summary if not None
+        if not (expected_display is None and expected_amount is None):
+            order.summary['expected_fee'] = expected_display
+
+        # Handle non-verifiable fees (express/third-party)
+        if expected_display is None and expected_amount is None:
+            # No reference – just capture and log
+            if actual_fee == order.free_shipping_phrase:
+                actual_amount = 0
             else:
-                print(f"✗ Expected 'DA DEFINIRE', got '{actual_fee}'")
-                return False, actual_fee
-        
+                actual_amount = extract_price(actual_fee)  # None if not a number
+            order.format_fee_display(actual_amount, actual_fee)
+            print(f"Fee (non-verifiable): {actual_fee}")
+            return True, actual_fee
+
         # Compare display strings
         if actual_fee == expected_display:
             print(f"✓ Fee verified: {actual_fee}")
+            if actual_fee == order.free_shipping_phrase:
+                actual_amount = 0
+            else:
+                actual_amount = extract_price(actual_fee)
+            order.format_fee_display(actual_amount, actual_fee)
             return True, actual_fee
+
         else:
             print(f"✗ Fee mismatch: Expected '{expected_display}', got '{actual_fee}'")
+            # Store actual fee even on mismatch
+            if actual_fee == order.free_shipping_phrase:
+                actual_amount = 0
+            else:
+                actual_amount = extract_price(actual_fee)
+            order.format_fee_display(actual_amount, actual_fee)
             return False, actual_fee
               
-    except Exception as e:
+    except Exception as e:  
         print(f"✗ Error verifying order fees: {str(e)}")
         take_screenshot("fee_verification_error")
         return False, "Error"
+
 
 def place_order():
     # Finalize the order by clicking the checkout button on the order form
@@ -1031,6 +1098,8 @@ def main_it(email, phone):
         test_phone = phone
 
         order = OrderContextIT()
+        order_result = False
+        fee_success = False
 
         print("\nLaunching browser...")
         driver = create_optimized_driver()
@@ -1160,12 +1229,14 @@ def main_it(email, phone):
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
 
-
         # Shipping fees match check
         if fee_success:
-            print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
+            if order.summary.get('expected_fee'):
+                print(f"Order fee (shipping + payment): ✓ As expected, {order.summary['order_fee']}")
+            else:
+                print(f"Order fee (shipping + payment): {order.summary['order_fee']} (not verified against reference)")
         else:
-            print(f"✗ Shipping fees don't match: expected {order.summary['expected_fee']}, got {order.summary['order_fee']}")
+            print(f"✗ Shipping fees don't match: expected {order.summary.get('expected_fee', 'N/A')}, got {order.summary['order_fee']}")
         
         print("----------END----------")
         time.sleep(10)
