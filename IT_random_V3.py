@@ -165,7 +165,7 @@ class ParentContext:
             self.summary['order_fee'] = f"0 {self.currency}"
             self.summary['order_fee_amount'] = 0
         else:
-            self.summary['order_fee'] = f"{amount} {self.currency}" if amount is not None else display_text
+            self.summary['order_fee'] = f"{self.currency}{amount}" if amount is not None else display_text
             self.summary['order_fee_amount'] = amount
             
 # Container for all order-related data
@@ -732,11 +732,41 @@ def select_payment_option(order):
                     payment_label
                 )
                 time.sleep(0.5)
+
                 payment_label.click()
-                time.sleep(1)
-                
-                print(f"✓ Successfully selected {selected_name}")
-                return True, selected_name
+                time.sleep(0.5)
+
+                # Verify the click registered — if not, the page rebuilt and reset to default
+                # Check if the radio input is actually selected
+                retries = 3
+                for attempt in range(retries):
+                    try:
+                        radio_input = driver.find_element(By.ID, selected_id)
+                        if radio_input.is_selected():
+                            break  # Click worked
+                    except:
+                        pass
+    
+                    if attempt < retries - 1:
+                        print(f"Payment not selected (attempt {attempt + 1}/{retries}), re-clicking...")
+                        time.sleep(1)
+                        # Re-find the label (may have been rebuilt)
+                        payment_label = driver.find_element(By.CSS_SELECTOR, f"label[for='{selected_id}']")
+                        driver.execute_script("arguments[0].click();", payment_label)
+                        time.sleep(0.5)
+
+                # Final check
+                try:
+                    radio_input = driver.find_element(By.ID, selected_id)
+                    if radio_input.is_selected():
+                        print(f"✓ Successfully selected {selected_name}")
+                        return True, selected_name
+                    else:
+                        print(f"✗ Could not confirm {selected_name} selection after {retries} attempts")
+                        return True, selected_name  # Continue anyway — don't fail the whole order
+                except:
+                    print(f"✗ Could not verify {selected_name} selection")
+                    return True, selected_name
                 
             except Exception as e:
                 # Fallback: try JavaScript click if normal click fails
@@ -745,16 +775,47 @@ def select_payment_option(order):
                     driver.execute_script(
                         f"document.querySelector('label[for=\"{selected_id}\"]').click();"
                     )
-                    time.sleep(1)
-                    print(f"✓ Successfully selected {selected_name} via JavaScript")
-                    return True, selected_name
+                    time.sleep(0.5)
+
+                    # Verify the click registered — if not, the page rebuilt and reset to default
+                    # Check if the radio input is actually selected
+                    retries = 3
+                    for attempt in range(retries):
+                        try:
+                            radio_input = driver.find_element(By.ID, selected_id)
+                            if radio_input.is_selected():
+                                break  # Click worked
+                        except:
+                            pass
+    
+                        if attempt < retries - 1:
+                            print(f"Payment not selected (attempt {attempt + 1}/{retries}), re-clicking...")
+                            time.sleep(1)
+                            # Re-find the label (may have been rebuilt)
+                            payment_label = driver.find_element(By.CSS_SELECTOR, f"label[for='{selected_id}']")
+                            driver.execute_script("arguments[0].click();", payment_label)
+                            time.sleep(0.5)
+
+                    # Final check
+                    try:
+                        radio_input = driver.find_element(By.ID, selected_id)
+                        if radio_input.is_selected():
+                            print(f"✓ Successfully selected {selected_name}")
+                            return True, selected_name
+                        else:
+                            print(f"✗ Could not confirm {selected_name} selection after {retries} attempts")
+                            return True, selected_name  # Continue anyway — don't fail the whole order
+                    except:
+                        print(f"✗ Could not verify {selected_name} selection")
+                        return True, selected_name
+
                 except:
                     print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
                     return False, selected_name
         else:
             print(f"Using {selected_name} (virtual or default), no action needed")
             return True, selected_name
-            
+
     except Exception as e:
         print(f"✗ Error in payment selection process: {str(e)}")
         take_screenshot("payment_option_error")
