@@ -293,6 +293,7 @@ class OrderContextIT(ParentContext):
         if total_amount == 0:
             display = self.free_shipping_phrase
         else:
+            # Different format than IT ERM
             display = f'{total_amount} {self.currency}'
     
         return display, total_amount
@@ -619,7 +620,7 @@ def _wait_for_payment_options(order):
     try:
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 
-                "label[for='ID_SHIPPING_METHOD_ID_101'], label[for='ID_SHIPPING_METHOD_ID_102'], label[for='ID_SHIPPING_METHOD_ID_29']"))
+                "label[for='ID_SHIPPING_METHOD_ID_16'], label[for='ID_SHIPPING_METHOD_ID_29']"))
         )
         print("Express delivery option loaded")
         time.sleep(1)  # Extra buffer for the page to finish rebuilding after express arrives
@@ -712,7 +713,7 @@ def select_delivery_option(order):
         else:
             print(f"Using default delivery option ({default_name}), no action needed")
             if not _wait_for_payment_options(order):
-                    print("✗ Payment options not fully ready, but continuing...")
+                print("✗ Payment options not fully ready, but continuing...")
             return True, selected_name
             
     except Exception as e:
@@ -1027,7 +1028,7 @@ def fill_order_form(user_email, test_phone):
 
 def verify_order_fee(order):
     try:
-        print("Verifying shipping fees...")
+        print("Verifying order fees...")
         time.sleep(2)
         
         # Get actual fee from page
