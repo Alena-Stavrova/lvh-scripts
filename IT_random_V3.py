@@ -610,7 +610,44 @@ def proceed_to_checkout():
         print(f"✗ Failed to proceed to checkout: {str(e)}")
         take_screenshot("checkout_error")
         return False
+
+def _wait_for_payment_options(order):
+    # Helper function that verifies all the payment buttons are interactable after express button appeared
     
+    # First, wait for the express delivery option to appear 
+    # This is the last element to load via third-party API
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 
+                "label[for='ID_SHIPPING_METHOD_ID_101'], label[for='ID_SHIPPING_METHOD_ID_102'], label[for='ID_SHIPPING_METHOD_ID_29']"))
+        )
+        print("Express delivery option loaded")
+        time.sleep(1)  # Extra buffer for the page to finish rebuilding after express arrives
+    except:
+        print("No express delivery option found (or already loaded)")
+
+    compatible_options = order.get_available_payment_options()
+    
+    if not compatible_options:
+        print("✗ No compatible payment options to wait for")
+        return True
+    
+    expected_ids = [opt['opt_id'] for opt in compatible_options]
+    print(f"Waiting for {len(expected_ids)} payment options to be clickable...")
+
+    for opt_id in expected_ids:
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, f"label[for='{opt_id}']"))
+            )
+        except:
+            print(f"✗ Payment option {opt_id} did not become clickable")
+            return False
+        
+    time.sleep(0.3)  # Small buffer after all are ready
+    print("✓ All payment options clickable")
+    return True 
+
 def select_delivery_option(order):
     try:
         delivery_options = order.delivery_options
@@ -644,25 +681,29 @@ def select_delivery_option(order):
                     delivery_label.click()
 
                 except:
-                    # Fallback: click the radio input directly via JavaScript
-                    print("Label not clickable, using JS click on radio input...")
+                    # Fallback: wait for the radio input to exist, then click via JavaScript
+                    print("Label not clickable, waiting for radio input to load...")
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, f"#{selected_id}"))
+                        )
+                        time.sleep(0.5)
+                    except:
+                        print(f"✗ Radio input #{selected_id} never appeared")
+                        return False, selected_name
+    
                     driver.execute_script(
                         f"document.querySelector('#{selected_id}').click();"
                     )
-                    # Also trigger change event in case the page listens for it
                     driver.execute_script(
                         f"document.querySelector('#{selected_id}').dispatchEvent(new Event('change', {{bubbles: true}}));"
-                        )
+                    )
 
                 time.sleep(1)
-                
-                # Wait for payment section to stabilize after delivery change
-                WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, "#bx-payment-method label"))
-                )
-                time.sleep(1.5)
-                
-                print(f"✓ Option clicked: {selected_name}")
+                if not _wait_for_payment_options(order):
+                    print("✗ Payment options not fully ready, but continuing...")
+
+                print(f"✓  Option clicked: {selected_name}")
                 return True, selected_name
                 
             except Exception as e:
@@ -670,6 +711,8 @@ def select_delivery_option(order):
                 return False, selected_name
         else:
             print(f"Using default delivery option ({default_name}), no action needed")
+            if not _wait_for_payment_options(order):
+                    print("✗ Payment options not fully ready, but continuing...")
             return True, selected_name
             
     except Exception as e:
@@ -677,6 +720,7 @@ def select_delivery_option(order):
         take_screenshot("delivery_option_error")
         return False, "Error"
 
+         
 def select_payment_option(order):
     try:
         print("Selecting payment option...")
@@ -732,42 +776,11 @@ def select_payment_option(order):
                     payment_label
                 )
                 time.sleep(0.5)
-
                 payment_label.click()
                 time.sleep(0.5)
-
-                # Verify the click registered — if not, the page rebuilt and reset to default
-                # Check if the radio input is actually selected
-                retries = 3
-                for attempt in range(retries):
-                    try:
-                        radio_input = driver.find_element(By.ID, selected_id)
-                        if radio_input.is_selected():
-                            break  # Click worked
-                    except:
-                        pass
-    
-                    if attempt < retries - 1:
-                        print(f"Payment not selected (attempt {attempt + 1}/{retries}), re-clicking...")
-                        time.sleep(1)
-                        # Re-find the label (may have been rebuilt)
-                        payment_label = driver.find_element(By.CSS_SELECTOR, f"label[for='{selected_id}']")
-                        driver.execute_script("arguments[0].click();", payment_label)
-                        time.sleep(0.5)
-
-                # Final check
-                try:
-                    radio_input = driver.find_element(By.ID, selected_id)
-                    if radio_input.is_selected():
-                        print(f"✓ Successfully selected {selected_name}")
-                        return True, selected_name
-                    else:
-                        print(f"✗ Could not confirm {selected_name} selection after {retries} attempts")
-                        return True, selected_name  # Continue anyway — don't fail the whole order
-                except:
-                    print(f"✗ Could not verify {selected_name} selection")
-                    return True, selected_name
-                
+                print(f"✓ Successfully selected {selected_name}")
+                return True, selected_name
+             
             except Exception as e:
                 # Fallback: try JavaScript click if normal click fails
                 try:
@@ -775,40 +788,9 @@ def select_payment_option(order):
                     driver.execute_script(
                         f"document.querySelector('label[for=\"{selected_id}\"]').click();"
                     )
-                    time.sleep(0.5)
-
-                    # Verify the click registered — if not, the page rebuilt and reset to default
-                    # Check if the radio input is actually selected
-                    retries = 3
-                    for attempt in range(retries):
-                        try:
-                            radio_input = driver.find_element(By.ID, selected_id)
-                            if radio_input.is_selected():
-                                break  # Click worked
-                        except:
-                            pass
-    
-                        if attempt < retries - 1:
-                            print(f"Payment not selected (attempt {attempt + 1}/{retries}), re-clicking...")
-                            time.sleep(1)
-                            # Re-find the label (may have been rebuilt)
-                            payment_label = driver.find_element(By.CSS_SELECTOR, f"label[for='{selected_id}']")
-                            driver.execute_script("arguments[0].click();", payment_label)
-                            time.sleep(0.5)
-
-                    # Final check
-                    try:
-                        radio_input = driver.find_element(By.ID, selected_id)
-                        if radio_input.is_selected():
-                            print(f"✓ Successfully selected {selected_name}")
-                            return True, selected_name
-                        else:
-                            print(f"✗ Could not confirm {selected_name} selection after {retries} attempts")
-                            return True, selected_name  # Continue anyway — don't fail the whole order
-                    except:
-                        print(f"✗ Could not verify {selected_name} selection")
-                        return True, selected_name
-
+                    time.sleep(1)
+                    print(f"✓ Successfully selected {selected_name} via JavaScript")
+                    return True, selected_name
                 except:
                     print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
                     return False, selected_name
