@@ -589,8 +589,11 @@ def get_total_price_basket(order):
         price_text = driver.find_element(By.CLASS_NAME, 'cart-panel__price').text
         price = extract_price(price_text)
         if price is not None:
-            order.summary['basket_price'] = price
-            return price
+            if order.displays_cents == True:
+                order.summary['basket_price'] = price
+            else:
+                order.summary['basket_price'] = int(price)
+            return price    
 
         print("✗ Could not find total price on page")
         return None
@@ -1218,27 +1221,28 @@ def place_order():
         return False
     
 def get_order_number():
-    # Get the order number from the URL of the confirmation page
-    # URL is like: https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
     try:
-        current_url = driver.current_url
-        if "ORDER_ID=" in current_url:
-            # Slicing different number of characters for test ("T-") and regular orders
-            # Will need to edit if > 99,999 orders
-            if "T-" in current_url:
-                order_num = current_url[-14:]
-            else:
-                order_num = current_url[-12:]
-            print(f"✓ Order confirmed! Order number: {order_num}")
-            return order_num
-                
-        else:
-            print(f"✗ Order number is not in current url: '{current_url}'")
+        # Wait for URL to contain ORDER_ID (redirect may take time)
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.url_contains("ORDER_ID=")
+            )
+            time.sleep(0.5)  # Small buffer after redirect
+        except:
+            print(f"✗ Order ID did not appear in URL: {driver.current_url}")
             return False
         
+        current_url = driver.current_url
+        if "T-" in current_url:
+            order_num = current_url[-14:]  # Adjust length per site
+        else:
+            order_num = current_url[-12:]  # Adjust length per site
+        print(f"✓ Order confirmed! Order number: {order_num}")
+        return order_num
+        
     except Exception as e:
-        print(f"✗ Error in final order submission: {str(e)}")
-        take_screenshot("final_order_error")
+        print(f"✗ Error getting order number: {str(e)}")
+        take_screenshot("order_number_error")
         return False
     
 # Main execution
@@ -1309,7 +1313,7 @@ def main_cz(email, phone):
                     step_counter.print_step("Checking cart contents")
                     if check_cart_contents(my_sku):
                         step_counter.print_step("Getting cart total price")
-                        basket_price = int(get_total_price_basket(order))
+                        basket_price = get_total_price_basket(order)
 
                         if basket_price is not None:
                             print(f"Cart total price: {basket_price} {order.currency}")
@@ -1380,7 +1384,7 @@ def main_cz(email, phone):
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
-        print(f"Item price: €{order.summary['basket_price']}")
+        print(f"Item price: {order.summary['basket_price']} {order.currency}")
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
 
