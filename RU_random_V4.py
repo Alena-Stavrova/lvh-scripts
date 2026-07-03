@@ -391,12 +391,12 @@ def choose_address(order):
 def choose_tin(order):
     tins = {
     'Moscow': [
-        '5029104266', # МПК
+        '5029104266', # МПК 
         '7712024477', # МКВЗ
         '5074045358' # Крафтбир
     ],
     'St. Petersburg': [
-        '7810756045' # Пряный хмель
+        '7810756045', # Пряный хмель
         '7839064872', # AF Brew
         '7830001010' # Игристые вина
     ],
@@ -1164,7 +1164,15 @@ def fill_company_order_form(user_email, test_phone, order):
             # Press Enter to select first suggestion
             tin_input.send_keys(Keys.ENTER)
             time.sleep(1)
-            print("Company selected, address auto-filled")
+
+            # Wait for address field to actually populate (Dadata may take a moment)
+            try:
+                WebDriverWait(driver, 10).until(
+                    lambda d: d.find_element(By.CSS_SELECTOR, ".ts-control input").get_attribute("value") != ""
+                )   
+                print("Company and address auto-filled")
+            except:
+                print("✗ Address may not have auto-filled, continuing...")
     
         except Exception as e:
             print(f"✗ Error with TIN field: {str(e)}")
@@ -1443,17 +1451,16 @@ def main_ru(email, phone):
                                 
                             if proceed_to_checkout():
                                 step_counter.print_step("Filling order form")
+                                # Order from a legal entity flow
                                 if is_company:
                                     # Navigate to company order page
                                     driver.get(website_main + "order/?person_type=COMPANY")
                                     time.sleep(2)
     
-                                    fill_form_success = fill_company_order_form(user_email, test_phone, order)
-                                    payment_success = select_payment_company(order)                                
+                                    fill_form_success = fill_company_order_form(user_email, test_phone, order)                                
                                 else:
                                     fill_form_success = fill_order_form(user_email, test_phone, order)
-                                    payment_success, payment = select_payment_option(order)
-                                
+                                    
                                 if fill_form_success:
                                     step_counter.print_step("Selecting delivery option")
                                     delivery_success, delivery = select_delivery_option(order)
