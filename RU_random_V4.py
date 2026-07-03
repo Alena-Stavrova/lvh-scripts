@@ -1165,14 +1165,16 @@ def fill_company_order_form(user_email, test_phone, order):
             tin_input.send_keys(Keys.ENTER)
             time.sleep(1)
 
-            # Wait for address field to actually populate (Dadata may take a moment)
+            # Wait for TomSelect address field to have a value
+            # TomSelect stores the value differently — check the hidden select
             try:
                 WebDriverWait(driver, 10).until(
-                    lambda d: d.find_element(By.CSS_SELECTOR, ".ts-control input").get_attribute("value") != ""
-                )   
-                print("Company and address auto-filled")
+                    lambda d: d.find_element(By.ID, "bx-input-order-FULL_ADDRESS_SEARCH_SHIP").get_attribute("value") != ""
+                )
+                print("Address auto-filled")
             except:
-                print("✗ Address may not have auto-filled, continuing...")
+                print("✗ Address may not have auto-filled")
+                # Fallback: type the address manually from the API response?
     
         except Exception as e:
             print(f"✗ Error with TIN field: {str(e)}")
