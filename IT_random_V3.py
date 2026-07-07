@@ -5,7 +5,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException
 import time
 import re
 import random
@@ -295,8 +296,8 @@ class OrderContextIT(ParentContext):
             display = self.free_shipping_phrase
         else:
             # Different format than IT ERM
-            display = f'{total_amount} {self.currency}'
-    
+            display = f'{self.currency}{total_amount}'
+     
         return display, total_amount
 
 # Choose random sku, return a string and int price class
@@ -647,7 +648,7 @@ def _wait_for_payment_options(order):
             return False
         
     time.sleep(0.3)  # Small buffer after all are ready
-    print("✓ All payment options clickable")
+    print("All payment options clickable")
     return True 
 
 def get_checked_option_id(id_prefix):
@@ -870,6 +871,9 @@ def select_payment_option(order):
 
             except StaleElementReferenceException:
                 print("Payment label went stale mid-click (page re-rendered), falling back to JS click...")
+                force_click_option(selected_id)
+            except (ElementClickInterceptedException, StaleElementReferenceException) as e:
+                print(f"Click intercepted/stale ({type(e).__name__}), falling back to JS click...")
                 force_click_option(selected_id)
             except Exception as e:
                 # Fallback: try JavaScript click if normal click fails
@@ -1211,26 +1215,23 @@ def place_order():
         return False
     
 def get_order_number():
-    # Get the order number from the URL of the confirmation page
-    # URL is like: https://levenhuk.com/order/?ORDER_ID=T-B2C-US-41574
+    # Actively wait for the redirect to complete 
+    try:
+        WebDriverWait(driver, 15).until(EC.url_contains("ORDER_ID="))
+    except TimeoutException:
+        print(f"✗ Order number never appeared in URL (waited 15s). Current URL: {driver.current_url}")
+        take_screenshot("order_number_timeout")
+        return False
     try:
         current_url = driver.current_url
-        if "ORDER_ID=" in current_url:
-            # Slicing different number of characters for test ("T-") and regular orders
-            # Will need to edit if > 99,999 orders
-            if "T-" in current_url:
-                order_num = current_url[-14:]
-            else:
-                order_num = current_url[-12:]
-            print(f"✓ Order confirmed! Order number: {order_num}")
-            return order_num
-                
+        if "T-" in current_url:
+            order_num = current_url[-14:]
         else:
-            print(f"✗ Order number is not in current url")
-            return False
-        
+            order_num = current_url[-12:]
+        print(f"✓ Order confirmed! Order number: {order_num}")
+        return order_num
     except Exception as e:
-        print(f"✗ Error in final order submission: {str(e)}")
+        print(f"✗ Error reading order number: {str(e)}")
         take_screenshot("final_order_error")
         return False
     
