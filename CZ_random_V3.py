@@ -5,6 +5,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException
 import time
 import re
 import random
@@ -636,6 +638,111 @@ def proceed_to_checkout():
         take_screenshot("checkout_error")
         return False
 
+def _wait_for_payment_options(order):
+    # Helper function that verifies all the payment buttons are interactable after express button appeared
+    
+    # First, wait for the express delivery option to appear 
+    # This is the last element to load via third-party API
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 
+                "label[for='ID_SHIPPING_METHOD_ID_28']"))
+        )
+        print("Express delivery option loaded")
+        time.sleep(1)  # Extra buffer for the page to finish rebuilding after express arrives
+    except:
+        print("No express delivery option found (or already loaded)")
+
+    compatible_options = order.get_available_payment_options()
+    
+    if not compatible_options:
+        print("✗ No compatible payment options to wait for")
+        return True
+    
+    expected_ids = [opt['opt_id'] for opt in compatible_options]
+    print(f"Waiting for {len(expected_ids)} payment options to be clickable...")
+
+    for opt_id in expected_ids:
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, f"label[for='{opt_id}']"))
+            )
+        except:
+            print(f"✗ Payment option {opt_id} did not become clickable")
+            return False
+        
+    time.sleep(0.3)  # Small buffer after all are ready
+    print("All payment options clickable")
+    return True 
+
+def get_checked_option_id(id_prefix):
+    # Ground-truth read of which radio input is actually checked in the DOM right now
+    # Returns the id string, or None if none are checked
+
+    script = """
+        var prefix = arguments[0];
+        var inputs = document.querySelectorAll('input[id^="' + prefix + '"]');
+        for (var i = 0; i < inputs.length; i++) {
+            if (inputs[i].checked) { return inputs[i].id; }
+        }
+        return null;
+    """
+    try:
+        return driver.execute_script(script, id_prefix)
+    except Exception:
+        return None
+
+def force_click_option(opt_id):
+    # Clicking the label fires the site's own click handlers, force the underlying input's checked state + change event
+    # Needed in case the label click alone gets swallowed by an in-progress re-render
+
+    try:
+        driver.execute_script(f"""
+            var label = document.querySelector('label[for="{opt_id}"]');
+            if (label) {{ label.click(); }}
+        """)
+    except Exception:
+        pass
+    try:
+        driver.execute_script(f"""
+            var input = document.getElementById('{opt_id}');
+            if (input && !input.checked) {{
+                input.checked = true;
+                input.dispatchEvent(new Event('change', {{bubbles: true}}));
+                input.dispatchEvent(new Event('click', {{bubbles: true}}));
+            }}
+        """)
+    except Exception:
+        pass
+
+def wait_until_selection_stable(id_prefix, expected_id, stable_duration=1.0, timeout=12, poll_interval=0.15):
+    # Poll the DOM until `expected_id` has been continuously checked for `stable_duration` seconds straight
+    # Any time the checked option drifts away from expected_id, it re-clicks expected_id and restarts the stability clock.
+    # Only moves on once things have genuinely settled, returns True if stable in time, False if it never settled (timeout).
+    
+    start = time.time()
+    stable_since = None
+
+    while time.time() - start < timeout:
+        current = get_checked_option_id(id_prefix)
+
+        if current == expected_id:
+            if stable_since is None:
+                stable_since = time.time()
+            elif time.time() - stable_since >= stable_duration:
+                return True
+        else:
+            if stable_since is not None:
+                print(f"  ↳ Selection drifted from {expected_id} (now: {current}), re-clicking...")
+            stable_since = None
+            force_click_option(expected_id)
+
+        time.sleep(poll_interval)
+
+    final = get_checked_option_id(id_prefix)
+    print(f"✗ '{expected_id}' never stabilized as checked (last seen: {final})")
+    return False
+
 def select_ppl(order):
 # Separate function for PPL delivery, used in select_delivery_option()
     try:
@@ -650,8 +757,14 @@ def select_ppl(order):
                 f"label[for='{ppl_option['opt_id']}']"))
         )
         ppl_element.click()
+        stable = wait_until_selection_stable("ID_SHIPPING_METHOD_ID_", ppl_option['opt_id'])
+        if not stable:
+            print("✗ Could not get PPL radio to stick")
+            return False, 'ppl parcel box'
         print("PPL delivery selected")
-        time.sleep(2)
+
+        if not _wait_for_payment_options(order):
+            print("✗ Payment options not fully ready, but continuing...")
 
         print("Selecting PPL pickup point...")
         WebDriverWait(driver, 10).until(
@@ -696,7 +809,7 @@ def select_ppl(order):
         print("Selection button clicked")
         time.sleep(2)
 
-        print("✓ PPL pickup point selected successfully")
+        print("PPL pickup point selected successfully")
         return True, "ppl parcel box"
     
     except Exception as e:
@@ -711,7 +824,6 @@ def select_delivery_option(order):
 
         # Update order context
         order.selected_delivery = selected
-
         selected_name = selected['local_name']
         selected_id = selected['opt_id']
         print(f"Selected: {selected_name}")
@@ -747,24 +859,47 @@ def select_delivery_option(order):
                     except:
                         # Fallback: click the radio input directly via JavaScript
                         print("Label not clickable, using JS click on radio input...")
+                        try:
+                            WebDriverWait(driver, 10).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, f"#{selected_id}"))
+                            )
+                            time.sleep(0.5)
+                        except:
+                            print(f"✗ Radio input #{selected_id} never appeared")
+                            return False, selected_name
+
                         driver.execute_script(
                             f"document.querySelector('#{selected_id}').click();"
-                        )
+                            )
                         # Also trigger change event in case the page listens for it
                         driver.execute_script(
                             f"document.querySelector('#{selected_id}').dispatchEvent(new Event('change', {{bubbles: true}}));"
                             )
                     time.sleep(1)
+                    if not _wait_for_payment_options(order):
+                        print("✗ Payment options not fully ready, but continuing...")
 
-                    # Wait for payment section to stabilize after delivery change
-                    WebDriverWait(driver, 10).until(
-                        EC.visibility_of_element_located((By.CSS_SELECTOR, "#bx-payment-method label"))
+                    # Confirm the click actually stuck (page may re-render after express loads)
+                    stable = wait_until_selection_stable("ID_SHIPPING_METHOD_ID_", selected_id)
+                    if not stable:
+                        print(f"✗ Could not get {selected_name} to stick")
+
+                    # Ground truth: read what's actually checked, don't just trust the intended click
+                    actual_id = get_checked_option_id("ID_SHIPPING_METHOD_ID_")
+                    actual_option = next(
+                        (opt for opt in order.delivery_options if opt['opt_id'] == actual_id),
+                        selected
                     )
-                    time.sleep(1.5)
-                
-                    print(f"Option clicked: {selected_name}")
-                    return True, selected_name
-                
+                    actual_name = actual_option['local_name']
+                    order.selected_delivery = actual_option
+
+                    if actual_id == selected_id:
+                        print(f"Confirmed delivery selection: {actual_name}")
+                    else:
+                        print(f"✗ Intended {selected_name} but DOM shows {actual_name} - reporting actual state")
+ 
+                    return True, actual_name
+
                 except Exception as e:
                     print(f"✗ Failed to click delivery option {selected_name}: {str(e)}")
                     return False, selected_name
@@ -833,83 +968,38 @@ def select_payment_option(order):
                 )
                 time.sleep(0.5)
                 payment_label.click()
-                time.sleep(0.5)
+                time.sleep(1)
 
-                # Verify the click registered — if not, the page rebuilt and reset to default
-                # Check if the radio input is actually selected
-                retries = 3
-                for attempt in range(retries):
-                    try:
-                        radio_input = driver.find_element(By.ID, selected_id)
-                        if radio_input.is_selected():
-                            break  # Click worked
-                    except:
-                        pass
-    
-                    if attempt < retries - 1:
-                        print(f"Payment not selected (attempt {attempt + 1}/{retries}), re-clicking...")
-                        time.sleep(1)
-                        # Re-find the label (may have been rebuilt)
-                        payment_label = driver.find_element(By.CSS_SELECTOR, f"label[for='{selected_id}']")
-                        driver.execute_script("arguments[0].click();", payment_label)
-                        time.sleep(0.5)
-
-                # Final check
-                try:
-                    radio_input = driver.find_element(By.ID, selected_id)
-                    if radio_input.is_selected():
-                        print(f"✓ Successfully selected {selected_name}")
-                        return True, selected_name
-                    else:
-                        print(f"✗ Could not confirm {selected_name} selection after {retries} attempts")
-                        return True, selected_name  # Continue anyway — don't fail the whole order
-                except:
-                    print(f"✗ Could not verify {selected_name} selection")
-                    return True, selected_name
-                
+            except (ElementClickInterceptedException, StaleElementReferenceException) as e:
+                print(f"Click intercepted/stale ({type(e).__name__}), falling back to JS click...")
+                force_click_option(selected_id)
             except Exception as e:
-                # Fallback: try JavaScript click if normal click fails
-                try:
-                    print("Attempting JavaScript click fallback...")
-                    driver.execute_script(
-                        f"document.querySelector('label[for=\"{selected_id}\"]').click();"
-                    )
-                    time.sleep(0.5)
+                print(f"Normal click failed ({str(e)}), attempting JS click fallback...")
+                force_click_option(selected_id) 
+            
+            # Confirm the click actually stuck; the express-delivery re-render can
+            # silently snap the radio back to the default right after we click it
+            stable = wait_until_selection_stable("ID_PAY_SYSTEM_ID_", selected_id)
+            if not stable:
+                print(f"✗ Could not get {selected_name} to stick")
+            
+            # Ground truth: read what's actually checked in the DOM right now,
+            # instead of trusting what we intended to click
+            actual_id = get_checked_option_id("ID_PAY_SYSTEM_ID_")
+            actual_option = next(
+                (opt for opt in order.payment_options if opt['opt_id'] == actual_id),
+                selected
+            )
+            actual_name = actual_option['local_name']
+            order.selected_payment = actual_option
+ 
+            if actual_id == selected_id:
+                print(f"✓ Confirmed payment selection: {actual_name}")
+            else:
+                print(f"✗ Intended {selected_name} but DOM shows {actual_name} - reporting actual state")
+ 
+            return True, actual_name
 
-                    # Verify the click registered — if not, the page rebuilt and reset to default
-                    # Check if the radio input is actually selected
-                    retries = 3
-                    for attempt in range(retries):
-                        try:
-                            radio_input = driver.find_element(By.ID, selected_id)
-                            if radio_input.is_selected():
-                                break  # Click worked
-                        except:
-                            pass
-    
-                        if attempt < retries - 1:
-                            print(f"Payment not selected (attempt {attempt + 1}/{retries}), re-clicking...")
-                            time.sleep(1)
-                            # Re-find the label (may have been rebuilt)
-                            payment_label = driver.find_element(By.CSS_SELECTOR, f"label[for='{selected_id}']")
-                            driver.execute_script("arguments[0].click();", payment_label)
-                            time.sleep(0.5)
-
-                    # Final check
-                    try:
-                        radio_input = driver.find_element(By.ID, selected_id)
-                        if radio_input.is_selected():
-                            print(f"✓ Successfully selected {selected_name}")
-                            return True, selected_name
-                        else:
-                            print(f"✗ Could not confirm {selected_name} selection after {retries} attempts")
-                            return True, selected_name  # Continue anyway — don't fail the whole order
-                    except:
-                        print(f"✗ Could not verify {selected_name} selection")
-                        return True, selected_name
-                except:
-                    print(f"✗ Failed to select payment option {selected_name}: {str(e)}")
-                    return False, selected_name
         else:
             print(f"Using {selected_name} (virtual or default), no action needed")
             return True, selected_name
@@ -982,6 +1072,7 @@ def fill_order_form(user_email, test_phone):
 
         # Select country in dropdown menu using Select object
         try:
+            close_cookie_popup()
             print(f"Selecting country: {country_name}")
 
             # Find the actual select element (visible, interactable)
@@ -1060,6 +1151,12 @@ def fill_order_form(user_email, test_phone):
                 time.sleep(0.5)
             except:
                 print("Loader not found or already gone")
+
+            # Wait for delivery section to stabilize (express option may be loading)
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "bx-delivery-method"))
+            )
+            time.sleep(0.5)
     
             address_field = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.ID, "ADDRESS_SHIP"))
@@ -1343,16 +1440,46 @@ def main_cz(email, phone):
                                         order.summary['payment_option'] = payment
                                     else:
                                         print("✗ Payment selection failed, but continuing with order process")
-                                  
+                                    
                                     time.sleep(2)
                                     step_counter.print_step("Verifying delivery and payment fees...")
                                     fee_success, fee_display = verify_order_fee(order)
                                     if fee_success:
                                         order.summary['order_fee'] = fee_display
-                                            
+                                    
                                     step_counter.print_step("Placing order")
-                                    order_result = place_order()
+                                            
+                                    # Final check: re-verify payment selection right before submitting,
+                                    # in case a late re-render (e.g. fee verification) caused drift after our earlier check
+                                    final_payment_option = order.selected_payment  # default: assume no drift
+                                    final_payment_id = get_checked_option_id("ID_PAY_SYSTEM_ID_")
 
+                                    if final_payment_id and final_payment_id != order.selected_payment['opt_id']:
+                                        intended_id = order.selected_payment['opt_id']
+                                        intended_name = order.selected_payment['local_name']
+                                        print(f"✗ Payment drifted before submission: was {order.selected_payment['local_name']}, now {final_payment_option['local_name']}")
+                                        
+                                         # Try to re-establish the originally intended selection
+                                        force_click_option(intended_id)
+                                        wait_until_selection_stable("ID_PAY_SYSTEM_ID_", intended_id)
+
+                                        # Re-read ground truth after the recovery attempt
+                                        final_payment_id = get_checked_option_id("ID_PAY_SYSTEM_ID_")
+                                        final_payment_option = next(
+                                            (opt for opt in order.payment_options if opt['opt_id'] == final_payment_id),
+                                            order.selected_payment
+                                        )
+
+                                        if final_payment_id == intended_id:
+                                            print(f"✓ Re-selected {intended_name} successfully")
+                                        else:
+                                            print(f"✗ Could not restore {intended_name}; proceeding with {final_payment_option['local_name']}")
+                                        
+                                    order.selected_payment = final_payment_option
+                                    order.summary['payment_option'] = final_payment_option['local_name']
+
+                                    order_result = place_order()
+                                    
                                     if order_result:
                                         print("✓ Order successfully placed!")
                                         time.sleep(3)

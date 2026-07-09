@@ -976,6 +976,7 @@ def fill_order_form(user_email, test_phone):
         # Select country in dropdown menu using Select object
         try:
             print(f"Selecting country: {country_name}")
+            close_cookie_popup()
 
             # Find the actual select element (visible, interactable)
             country_select = WebDriverWait(driver, 10).until(
@@ -1053,6 +1054,12 @@ def fill_order_form(user_email, test_phone):
                 time.sleep(0.5)
             except:
                 print("Loader not found or already gone")
+            
+            # Wait for delivery section to stabilize (express option may be loading)
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "bx-delivery-method"))
+            )
+            time.sleep(0.5)
     
             address_field = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.ID, "ADDRESS_SHIP"))
@@ -1341,6 +1348,36 @@ def main_it(email, phone):
                                         order.summary['order_fee'] = fee_display
                                             
                                     step_counter.print_step("Placing order")
+    
+                                    # Final check: re-verify payment selection right before submitting,
+                                    # in case a late re-render (e.g. fee verification) caused drift after our earlier check
+                                    final_payment_option = order.selected_payment  # default: assume no drift
+                                    final_payment_id = get_checked_option_id("ID_PAY_SYSTEM_ID_")
+
+                                    if final_payment_id and final_payment_id != order.selected_payment['opt_id']:
+                                        intended_id = order.selected_payment['opt_id']
+                                        intended_name = order.selected_payment['local_name']
+                                        print(f"✗ Payment drifted before submission: was {order.selected_payment['local_name']}, now {final_payment_option['local_name']}")
+                                        
+                                         # Try to re-establish the originally intended selection
+                                        force_click_option(intended_id)
+                                        wait_until_selection_stable("ID_PAY_SYSTEM_ID_", intended_id)
+
+                                        # Re-read ground truth after the recovery attempt
+                                        final_payment_id = get_checked_option_id("ID_PAY_SYSTEM_ID_")
+                                        final_payment_option = next(
+                                            (opt for opt in order.payment_options if opt['opt_id'] == final_payment_id),
+                                            order.selected_payment
+                                        )
+
+                                        if final_payment_id == intended_id:
+                                            print(f"✓ Re-selected {intended_name} successfully")
+                                        else:
+                                            print(f"✗ Could not restore {intended_name}; proceeding with {final_payment_option['local_name']}")
+                                        
+                                    order.selected_payment = final_payment_option
+                                    order.summary['payment_option'] = final_payment_option['local_name']
+
                                     order_result = place_order()
 
                                     if order_result:
