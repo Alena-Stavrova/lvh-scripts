@@ -162,7 +162,7 @@ class OrderContextTR(ParentContext):
             'price_classes': {
                 0: [74068, 74063, 29279, 60973, 77873, 70730], # Under 1,250 TL - NOT A LOT of these
         
-                1: [77098, 69067, 79574, 70446, 72110]  # 1,250+ TL
+                1: [81933, 69067, 72853, 70446, 72110]  # 1,250+ TL
             }
         }
      
