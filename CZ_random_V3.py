@@ -6,7 +6,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException
-from selenium.common.exceptions import TimeoutException
 import time
 import re
 import random
@@ -203,7 +202,7 @@ class OrderContextCZ(ParentContext):
                 'local_name': 'expresní doručení',
                 'en_name': 'express courier',
                 'opt_id': 'ID_SHIPPING_METHOD_ID_28'
-                },
+                }
             ]
           
         self.payment_options = [
@@ -280,7 +279,7 @@ class OrderContextCZ(ParentContext):
         delivery_name = self.selected_delivery['en_name']
         price_class = self.sku['price_class']  
 
-         # Express delivery - 3rd party API, nothing to verify against
+        # Express delivery - 3rd party API, nothing to verify against
         if delivery_name == 'express courier':
             return None, None
         
