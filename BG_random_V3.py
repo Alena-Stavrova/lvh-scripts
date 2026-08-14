@@ -162,15 +162,14 @@ class ParentContext:
 class OrderContextBG(ParentContext):
     def __init__(self):
         super().__init__()
-        self.currency = 'лв.'
+        self.currency = "€"
         self.displays_cents = True
         self.free_shipping_phrase = 'Безплатна доставка'
     
         self.sku_lists = {
-            'price_classes': {
-                0: [69378, 72209, 81932, 69669, 79667], # Under 200 BGN
-
-                1: [73800, 78160, 67698, 70421, 84085] # 200+ BGN
+            "price_classes": {
+                0: [69378, 72209, 67684, 69669, 79667],  # Under 106€
+                1: [73800, 78160, 67698, 70421, 84085],  # 106+ €
             }
         }
 
@@ -220,10 +219,10 @@ class OrderContextBG(ParentContext):
         self.fees = {
                 'shipping': {
                     'standard': {
-                        'under_200': {
+                        'under_106': {
                             'display': 'TBD'
                         },
-                        'over_200': {
+                        'over_106': {
                             'display': 'Безплатна доставка'
                         }
                     }
@@ -236,9 +235,9 @@ class OrderContextBG(ParentContext):
 
         price_class = self.sku['price_class']  
         if price_class == 0:  
-            tier = 'under_200'
+            tier = 'under_106'
         else:  
-            tier = 'over_200'
+            tier = 'over_106'
         
         # Return display string only - no costs in numbers
         return self.fees['shipping']['standard'][tier]['display'], None 
@@ -266,7 +265,7 @@ class OrderContextBG(ParentContext):
             total_display = ship_display 
         # Calculate cost in numbers 
         else:
-            total_display = f"{total_amount} {self.currency}"
+            total_display = f"{total_amount}{self.currency}"
     
         return total_display, total_amount
     
