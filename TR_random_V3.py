@@ -234,7 +234,7 @@ class OrderContextTR(ParentContext):
         if delivery_name == 'shop pickup':
             fee_data = self.fees['shipping'][delivery_name]['any']
         
-        # Courier and PPL
+        # Courier 
         else:
             if price_class == 0:  
                 tier = 'under_1250'

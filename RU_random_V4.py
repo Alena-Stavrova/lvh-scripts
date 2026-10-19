@@ -80,6 +80,7 @@ class ParentContext:
             'delivery_option': None,
             'payment_option': None,
             'basket_price': None,
+            'basket_price_discounted': None,
             'order_result': None,
             'expected_fee': None,
             'order_fee': None,
@@ -755,7 +756,6 @@ def _select_pickup_location(order):
         take_screenshot("pickup_selection_error")
         return False
     
-    
 def select_delivery_option(order):
     try:
         region = order.sku['region']
@@ -801,7 +801,7 @@ def select_delivery_option(order):
 def select_payment_option(order):
     try:
         print("Selecting payment option...")
-    
+
         available_options = order.get_available_payment_options()
         
         if not available_options:
@@ -937,8 +937,6 @@ def fill_order_form(user_email, test_phone, order):
             phone_field = WebDriverWait(driver, 5).until(
                 EC.visibility_of_element_located((By.NAME, "ORDER_PROP_66"))
             )
-            if phone_field:
-                print("found phone field")
             phone_field.click()
             phone_field.clear()
             phone_field.send_keys(test_phone)
@@ -1312,6 +1310,7 @@ def verify_discount_math(order, expected_discount_pct):
         
         if round(expected_total) == round(new_total):
             print(f"✓ Discount math verified: {item_price} - {int(expected_discount_pct*100)}% + {delivery_cost} = {new_total}")
+            order.summary['basket_price_discounted'] = float(discounted_item_price)
             return True
         else:
             print(f"✗ Discount math mismatch:")
@@ -1533,7 +1532,10 @@ def main_ru(email, phone):
         else:
             print("Order number: order wasn't placed")
         print(f"Chosen SKU: {order.sku['selected']}")
-        print(f"Item price: {order.summary['basket_price']} {order.currency}")
+        if order.summary['discount'] == 0:
+            print(f"Item price: {order.summary['basket_price']} {order.currency}")
+        else:
+            print(f'Item: {order.summary['basket_price']}{order.currency} → discounted: {order.summary['basket_price_discounted']}{order.currency}')
         print(f'Chosen region: {order.sku['region']}')
         print(f"Delivery option: {order.summary['delivery_option']}")
         print(f"Payment option: {order.summary['payment_option']}")
